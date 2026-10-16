@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es-419">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Inicio | JuanetoFZ</title>
+  <meta name="description" content="Fotografía y video biker en Medellín. Elige tus fotos y pídelas por WhatsApp.">
+
+  <!-- Íconos del sitio -->
+  <link href="assets/img/favicon.png" rel="icon">
+  <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- CSS de librerías -->
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- CSS principal y personalización JuanetoFZ -->
+  <link href="assets/css/main.css" rel="stylesheet">
+  <link href="assets/css/jfz.css" rel="stylesheet">
+</head>
+
+<body class="index-page" data-page="inicio">
+
+  <!-- El menú superior se genera en assets/js/jfz.js -->
+  <header id="header" class="header d-flex align-items-center sticky-top"></header>
+
+  <main class="main">
+
+    <!-- Portada -->
+    <section id="hero" class="hero section">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-lg-7 text-center" data-aos="fade-up" data-aos-delay="100">
+            <h2><span>Fotografía </span><span class="underlight">Biker</span><span> en Medellín</span></h2>
+            <p>Explora la galería, elige tus fotos favoritas y envía tu pedido por WhatsApp.</p>
+            <a href="gallery.html" class="btn-get-started">Ver galería completa</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cómo funciona -->
+    <section id="como-funciona" class="section jfz-steps">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Cómo funciona</h2>
+        <p>Tres pasos para pedir tus fotos</p>
+      </div>
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-md-4" data-aos="fade-up" data-aos-delay="100"><div class="step"><i class="bi bi-google"></i><h3>1. Inicia sesión</h3><p class="mb-0">Entra con tu cuenta de Google.</p></div></div>
+          <div class="col-md-4" data-aos="fade-up" data-aos-delay="200"><div class="step"><i class="bi bi-cart-plus"></i><h3>2. Elige tus fotos</h3><p class="mb-0">Agrégalas al carrito desde la galería.</p></div></div>
+          <div class="col-md-4" data-aos="fade-up" data-aos-delay="300"><div class="step"><i class="bi bi-whatsapp"></i><h3>3. Envía el pedido</h3><p class="mb-0">Te llega la lista a mi WhatsApp y coordinamos.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fotos destacadas (se generan desde assets/js/fotos.js) -->
+    <section id="destacadas" class="gallery section">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Últimas fotos</h2>
+        <p>Una muestra del 3er trimestre 2026</p>
+      </div>
+      <div class="container-fluid" data-aos="fade-up" data-aos-delay="100">
+        <div class="row gy-4 justify-content-center" id="jfz-destacadas"></div>
+        <div class="text-center mt-5"><a href="gallery.html" class="btn-get-started">Ver todas las fotos</a></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- El pie de página se genera en assets/js/jfz.js -->
+  <footer id="footer" class="footer"></footer>
+
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+  <div id="preloader"><div class="line"></div></div>
+
+  <!-- JS de librerías -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/fotos.js"></script>
+  <script src="assets/js/jfz.js"></script>
+  <script src="assets/js/main.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es-419">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Contacto | JuanetoFZ</title>
+  <meta name="description" content="Cómo contactar a JuanetoFZ y dónde tomamos las fotos.">
+
+  <!-- Íconos del sitio -->
+  <link href="assets/img/favicon.png" rel="icon">
+  <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- CSS de librerías -->
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- CSS principal y personalización JuanetoFZ -->
+  <link href="assets/css/main.css" rel="stylesheet">
+  <link href="assets/css/jfz.css" rel="stylesheet">
+</head>
+
+<body class="contact-page" data-page="contacto">
+
+  <!-- El menú superior se genera en assets/js/jfz.js -->
+  <header id="header" class="header d-flex align-items-center sticky-top"></header>
+
+  <main class="main">
+
+    <!-- Título de la página -->
+    <div class="page-title" data-aos="fade">
+      <div class="heading">
+        <div class="container">
+          <div class="row d-flex justify-content-center text-center">
+            <div class="col-lg-8">
+              <h1>Contacto</h1>
+              <p class="mb-0">Escríbeme por WhatsApp o encuéntranos en el mapa.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <nav class="breadcrumbs">
+        <div class="container">
+          <ol>
+            <li><a href="index.html">Inicio</a></li>
+            <li class="current">Contacto</li>
+          </ol>
+        </div>
+      </nav>
+    </div>
+
+    <section id="contact" class="contact section">
+      <div class="container" data-aos="fade-up" data-aos-delay="100">
+
+        <div class="info-wrap" data-aos="fade-up" data-aos-delay="200">
+          <div class="row gy-5">
+            <div class="col-lg-4">
+              <div class="info-item d-flex align-items-center">
+                <i class="bi bi-geo-alt flex-shrink-0"></i>
+                <div><h3>Ubicación</h3><p data-cfg="UBICACION">Medellín, Colombia</p></div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="info-item d-flex align-items-center">
+                <i class="bi bi-telephone flex-shrink-0"></i>
+                <div><h3>Llamar</h3><p data-cfg="TELEFONO">+57 XXX XXX XXXX</p></div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="info-item d-flex align-items-center">
+                <i class="bi bi-envelope flex-shrink-0"></i>
+                <div><h3>Correo</h3><p data-cfg="CORREO">correo@ejemplo.com</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mapa de Google. Para cambiar el lugar, edita MAPA_URL en assets/js/config.js y pega el mismo enlace aquí -->
+        <div class="jfz-map" data-aos="fade-up" data-aos-delay="300">
+          <iframe id="jfz-mapa" title="Mapa del lugar de las sesiones" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen
+            src="https://www.google.com/maps?q=Medell%C3%ADn%2C%20Colombia&output=embed"></iframe>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- El pie de página se genera en assets/js/jfz.js -->
+  <footer id="footer" class="footer"></footer>
+
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+  <div id="preloader"><div class="line"></div></div>
+
+  <!-- JS de librerías -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/fotos.js"></script>
+  <script src="assets/js/jfz.js"></script>
+  <script src="assets/js/main.js"></script>
+
+</body>
+
+</html>

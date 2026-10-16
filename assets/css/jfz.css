@@ -1,0 +1,80 @@
+/* JuanetoFZ — personalización sobre main.css (se carga DESPUÉS de main.css) */
+:root {
+  --heading-font: "Bebas Neue", "Oswald", sans-serif;   /* tipografía de títulos (cámbiala aquí) */
+  --nav-font: "Oswald", "Inter", sans-serif;
+  --accent-color: #2f5bff;                              /* azul del logo JFZ, aclarado para leerse sobre negro */
+  --accent-hover: #6b8bff;
+}
+[hidden] { display: none !important; }
+h1, h2, h3, h4, .sitename { letter-spacing: .04em; }
+h1, h2, h3 { text-transform: uppercase; font-weight: 400; }
+.navmenu a, .navmenu a:focus { text-transform: uppercase; letter-spacing: .08em; }
+a:hover { color: var(--accent-hover); }
+.btn-get-started, .cta-btn { background: var(--accent-color); border-color: var(--accent-color); color: #fff; font-family: var(--nav-font); letter-spacing: .08em; text-transform: uppercase; }
+.btn-get-started:hover, .cta-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.hero h2 .underlight, .section-title h2:after { color: var(--accent-color); }
+.scroll-top { background: var(--accent-color); }
+#preloader:before, #preloader .line:before { border-color: var(--accent-color); }
+
+/* Logo + título */
+.header .logo img { max-height: 46px; margin-right: 10px; }
+.header .logo .sitename { font-size: 30px; margin: 0; }
+
+/* Acciones del encabezado */
+.jfz-actions { display: flex; align-items: center; gap: 14px; margin-left: 18px; }
+.jfz-cart-link { position: relative; color: #fff; font-size: 24px; line-height: 1; }
+.jfz-badge { position: absolute; top: -8px; right: -10px; min-width: 19px; height: 19px; border-radius: 10px; background: var(--accent-color); color: #fff; font: 600 11px/19px var(--nav-font); text-align: center; padding: 0 5px; }
+.jfz-auth { background: transparent; color: #fff; border: 1px solid var(--accent-color); border-radius: 999px; padding: 7px 16px; font: 500 13px var(--nav-font); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.jfz-auth:hover { background: var(--accent-color); }
+@media (max-width: 575px) { .jfz-auth span { display: none; } .header .logo .sitename { font-size: 24px; } }
+
+/* Pestañas de la galería */
+.jfz-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0 0 34px; }
+.jfz-tabs button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 20px; font: 500 14px var(--nav-font); letter-spacing: .08em; text-transform: uppercase; }
+.jfz-tabs button:hover { border-color: var(--accent-color); }
+.jfz-tabs button.on { background: var(--accent-color); border-color: var(--accent-color); }
+.jfz-sec { margin-bottom: 56px; }
+.jfz-sec-title { font-size: 38px; margin: 0 0 22px; padding-bottom: 10px; border-bottom: 2px solid var(--accent-color); }
+.jfz-sec-title small { font: 400 14px var(--nav-font); color: rgba(255,255,255,.55); letter-spacing: .08em; margin-left: 10px; }
+.jfz-empty { color: rgba(255,255,255,.6); }
+
+/* Tarjetas de fotos */
+.jfz-card { margin: 0; background: #0d0d0d; border-radius: 10px; overflow: hidden; border: 2px solid transparent; transition: border-color .2s; }
+.jfz-card.is-selected { border-color: var(--accent-color); }
+.jfz-card > a { display: block; aspect-ratio: 4 / 5; overflow: hidden; background: #111; }
+.jfz-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
+.jfz-card:hover img { transform: scale(1.04); }
+.jfz-card figcaption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; }
+.jfz-card figcaption span { font: 500 14px var(--nav-font); letter-spacing: .06em; color: rgba(255,255,255,.8); }
+.jfz-add { background: transparent; color: #fff; border: 1px solid var(--accent-color); border-radius: 999px; padding: 6px 14px; font: 500 13px var(--nav-font); white-space: nowrap; }
+.jfz-add:hover, .jfz-add.on { background: var(--accent-color); }
+
+/* Carrito */
+.jfz-panel { background: #0d0d0d; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 28px; }
+.jfz-panel h2 { font-size: 30px; margin-bottom: 18px; }
+.jfz-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.jfz-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.jfz-row-n { flex: 1; display: flex; flex-direction: column; }
+.jfz-row-n span { font-size: 13px; color: rgba(255,255,255,.55); }
+.jfz-row-p { font-family: var(--nav-font); }
+.jfz-rm, .jfz-link { background: none; border: 0; color: rgba(255,255,255,.6); }
+.jfz-rm:hover, .jfz-link:hover { color: #fff; }
+.jfz-link { display: block; margin: 14px auto 0; text-decoration: underline; }
+.jfz-line { display: flex; justify-content: space-between; padding: 8px 0; }
+.jfz-total { font: 500 22px var(--nav-font); border-top: 1px solid rgba(255,255,255,.15); margin: 6px 0 18px; padding-top: 14px; }
+.jfz-note { font-size: 13px; color: rgba(255,255,255,.55); margin-top: 14px; }
+
+/* Pasos (inicio) */
+.jfz-steps .step { text-align: center; padding: 26px 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; height: 100%; }
+.jfz-steps .step i { font-size: 40px; color: var(--accent-color); }
+.jfz-steps .step h3 { font-size: 26px; margin: 10px 0 6px; }
+
+/* Mapa */
+.jfz-map { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); }
+.jfz-map iframe { display: block; width: 100%; height: 480px; border: 0; }
+@media (max-width: 767px) { .jfz-map iframe { height: 360px; } }
+
+/* Aviso */
+.jfz-aviso { background: rgba(47,91,255,.15); border: 1px solid var(--accent-color); border-radius: 8px; padding: 10px 16px; margin-bottom: 24px; font-size: 14px; }
+#jfz-toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 30px); background: var(--accent-color); color: #fff; padding: 10px 22px; border-radius: 999px; font: 500 14px var(--nav-font); opacity: 0; pointer-events: none; transition: .25s; z-index: 99999; }
+#jfz-toast.show { opacity: 1; transform: translate(-50%, 0); }
