@@ -134,7 +134,13 @@ window.JFZ_FOTOS = [
       "IMG_5242.jpg",
       "IMG_5243.jpg",
       "IMG_5245.jpg",
-      "IMG_5246.jpg"
+      "IMG_5246.jpg",
+      "IMG_5247.jpg",
+      "IMG_5248.jpg",
+      "IMG_5249.jpg",
+      "IMG_5250.jpg",
+      "IMG_5251.jpg",
+      "IMG_5252.jpg"
     ]
   }
 ];
