@@ -11,9 +11,9 @@ window.JFZ_CONFIG.AVISO_SESION =
 
 window.JFZ_CONFIG.SERVICIOS = [
   { id: "sesion-fotos", nombre: "Sesión de fotos", icono: "bi-camera", precio: null, precioTexto: "Desde $4.000 por foto",
-    nota: "Pagas solo las fotos que elijas: $10.000 c/u, $5.000 c/u desde 3 fotos y $4.000 c/u desde 4. Mismo precio para una o varias personas por foto.", aviso: true },
+    nota: "Pagas solo las fotos que elijas: $10.000 c/u, $8.000 c/u desde 3 fotos y $5.000 c/u desde 4. Mismo precio para una o varias personas por foto.", aviso: true },
   { id: "video-short", nombre: "Video corto (short)", icono: "bi-phone", precio: null, precioTexto: "Regalo con 1 foto",
-    nota: "30 segundos o menos para redes. Regalo si compras 1 sola foto. Solo después de la sesión de fotos.", aviso: true },
+    nota: "30 segundos o menos para redes.Foto solo después de la sesión de fotos.", aviso: true },
   { id: "cinematic", nombre: "Video cinematic", icono: "bi-camera-video", precio: 5000,
     nota: "Varias tomas. Precio por persona. Solo después de la sesión de fotos.", aviso: true },
   { id: "cinematic-short", nombre: "Cinematic + short", icono: "bi-film", precio: 8000,

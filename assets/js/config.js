@@ -21,8 +21,8 @@ window.JFZ_CONFIG = {
   //    "desde" = cantidad mínima de fotos. Con 2 fotos se cobra el precio de 1 (ajústalo si quieres).
   PRECIOS: [
     { desde: 1, precio: 10000 },
-    { desde: 3, precio: 5000 },
-    { desde: 4, precio: 4000 }
+    { desde: 3, precio: 8000 },
+    { desde: 4, precio: 5000 }
   ],
 
   // 4) Firebase (inicio de sesión con Google). Pega aquí los datos de tu app web de Firebase.
@@ -35,5 +35,5 @@ window.JFZ_CONFIG = {
   },
 
   // 5) Mapa de la página Contacto (ver la guía para obtener el enlace "insertar mapa")
-  MAPA_URL: "https://www.google.com/maps?q=Medell%C3%ADn%2C%20Colombia&output=embed"
+  MAPA_URL: "https://maps.app.goo.gl/R5f2fJRUgF6eZJ6Z9"
 };
