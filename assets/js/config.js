@@ -5,11 +5,11 @@ window.JFZ_CONFIG = {
 
   // 1) WhatsApp que recibe los pedidos. Solo números, con indicativo de país.
   //    Colombia = 57. Ejemplo: "573001234567"
-  WHATSAPP: "57XXXXXXXXXX",
+  WHATSAPP: "573045508474",
 
   // 2) Datos de contacto que se muestran en la página Contacto
-  TELEFONO: "+57 XXX XXX XXXX",
-  CORREO: "correo@ejemplo.com",
+  TELEFONO: "+57 304 550 8474",
+  CORREO: "juanetobiker@gmail.com",
   UBICACION: "Medellín, Colombia",
   INSTAGRAM: "https://www.instagram.com/juaneto.biker",
   // Otras redes: pega el enlace entre comillas y aparecerán solas. Déjalas "" si no aplican.
@@ -28,10 +28,10 @@ window.JFZ_CONFIG = {
   // 4) Firebase (inicio de sesión con Google). Pega aquí los datos de tu app web de Firebase.
   //    Mientras digan "PEGA_AQUI", el sitio funciona en MODO PRUEBA (sin Google real).
   FIREBASE: {
-    apiKey: "PEGA_AQUI",
-    authDomain: "PEGA_AQUI",
-    projectId: "PEGA_AQUI",
-    appId: "PEGA_AQUI"
+    apiKey: "AIzaSyBId3vkGVg6Xa-Wu2Ui6aGjsbxWeCUs5Ic",
+    authDomain: "database-fotomoteros.firebaseapp.com",
+    projectId: "database-fotomoteros",
+    appId: "1:37802242353:web:8be17d57ee76a34b324010"
   },
 
   // 5) Mapa de la página Contacto (ver la guía para obtener el enlace "insertar mapa")
