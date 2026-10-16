@@ -78,3 +78,45 @@ a:hover { color: var(--accent-hover); }
 .jfz-aviso { background: rgba(47,91,255,.15); border: 1px solid var(--accent-color); border-radius: 8px; padding: 10px 16px; margin-bottom: 24px; font-size: 14px; }
 #jfz-toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 30px); background: var(--accent-color); color: #fff; padding: 10px 22px; border-radius: 999px; font: 500 14px var(--nav-font); opacity: 0; pointer-events: none; transition: .25s; z-index: 99999; }
 #jfz-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+
+/* ===== Ajustes v2 ===== */
+/* "Biker": mitad de arriba azul, mitad de abajo (sobre el recuadro azul) en negro */
+.hero h2 .underlight { color: #000; }
+.hero h2 .underlight::after { content: attr(data-text); position: absolute; left: 5px; top: 0; white-space: nowrap; color: var(--accent-color); clip-path: inset(0 0 50% 0); pointer-events: none; }
+
+/* Sin animación de carga al cambiar de página, y animaciones de aparición más rápidas */
+#preloader { display: none !important; }
+html [data-aos] { transition-duration: .3s !important; transition-delay: 0s !important; }
+html [data-aos="fade-up"]:not(.aos-animate) { transform: translate3d(0, 14px, 0) !important; }
+@media (prefers-reduced-motion: reduce) { html [data-aos] { transition: none !important; transform: none !important; opacity: 1 !important; } }
+
+/* Menú móvil: la hamburguesa siempre a la izquierda; carrito y cuenta a la derecha */
+@media (max-width: 1200px) {
+  .header .container-fluid { flex-wrap: nowrap; }
+  .header #navmenu { order: 1 !important; }   /* hamburguesa primero (izquierda) */
+  .header .logo { order: 2 !important; margin-right: auto !important; }
+  .header .jfz-actions { order: 3 !important; margin-left: 10px; }
+  .mobile-nav-active .mobile-nav-toggle { right: auto; left: 15px; }
+}
+
+/* Servicios */
+.jfz-serv { background: #0d0d0d; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 26px; height: 100%; display: flex; flex-direction: column; }
+.jfz-serv > i { font-size: 38px; color: var(--accent-color); }
+.jfz-serv h3 { font-size: 28px; margin: 8px 0 4px; }
+.jfz-serv-price { font: 500 20px var(--nav-font); color: var(--accent-hover); margin-bottom: 8px; }
+.jfz-serv p { color: rgba(255,255,255,.7); font-size: 15px; }
+.jfz-svc-add { margin-top: auto; align-self: flex-start; background: transparent; color: #fff; border: 1px solid var(--accent-color); border-radius: 999px; padding: 8px 20px; font: 500 14px var(--nav-font); letter-spacing: .05em; text-transform: uppercase; }
+.jfz-svc-add:hover, .jfz-svc-add.on { background: var(--accent-color); }
+
+/* Carrito: subtítulos, íconos y aviso */
+.jfz-sub { font-size: 22px; margin: 22px 0 4px; color: var(--accent-hover); }
+.jfz-row-i { width: 64px; text-align: center; font-size: 32px; color: var(--accent-color); }
+.jfz-aviso-box { background: rgba(47,91,255,.15); border: 1px solid var(--accent-color); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; font-size: 14px; }
+
+/* Ventana de aviso */
+#jfz-modal { position: fixed; inset: 0; z-index: 99998; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.jfz-modal-box { background: #111; border: 1px solid var(--accent-color); border-radius: 14px; padding: 30px; max-width: 460px; text-align: center; }
+.jfz-modal-box > i { font-size: 36px; color: var(--accent-color); }
+.jfz-modal-box h3 { font-size: 28px; margin: 6px 0 10px; }
+.jfz-modal-box p { color: rgba(255,255,255,.85); margin-bottom: 20px; }

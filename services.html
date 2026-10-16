@@ -58,32 +58,14 @@
       </nav>
     </div>
 
-    <!-- Servicios -->
+    <!-- Servicios: se generan desde assets/js/servicios.js (cada uno tiene botón para el carrito) -->
     <section id="services" class="services section">
+      <div class="container section-title" data-aos="fade-up">
+        <h2>Elige tus servicios</h2>
+        <p>Agrégalos al carrito junto con tus fotos</p>
+      </div>
       <div class="container">
-        <div class="row gy-4">
-          <div class="col-xl-4 col-md-6 d-flex" data-aos="fade-up" data-aos-delay="100">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-camera icon"></i></div>
-              <h4><a href="gallery.html" class="stretched-link">Fotos</a></h4>
-              <p>Sesiones de fotos para uno o varios motociclistas. El precio es el mismo para una o varias personas por foto.</p>
-            </div>
-          </div>
-          <div class="col-xl-4 col-md-6 d-flex" data-aos="fade-up" data-aos-delay="200">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-camera-video icon"></i></div>
-              <h4><a href="contact.html" class="stretched-link">Foto + Video</a></h4>
-              <p>Videos cortos para redes y videos cinematic. Solo disponibles después de las fotos; precio por persona.</p>
-            </div>
-          </div>
-          <div class="col-xl-4 col-md-6 d-flex" data-aos="fade-up" data-aos-delay="300">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-image icon"></i></div>
-              <h4><a href="contact.html" class="stretched-link">Fotos enmarcadas</a></h4>
-              <p>Muy pronto: tus fotos enmarcadas en 40x70 y 50x70.</p>
-            </div>
-          </div>
-        </div>
+        <div class="row gy-4" id="jfz-servicios"></div>
       </div>
     </section>
 
@@ -122,7 +104,6 @@
   <footer id="footer" class="footer"></footer>
 
   <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
-  <div id="preloader"><div class="line"></div></div>
 
   <!-- JS de librerías -->
   <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -132,6 +113,7 @@
 
   <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
   <script src="assets/js/config.js"></script>
+  <script src="assets/js/servicios.js"></script>
   <script src="assets/js/fotos.js"></script>
   <script src="assets/js/jfz.js"></script>
   <script src="assets/js/main.js"></script>
