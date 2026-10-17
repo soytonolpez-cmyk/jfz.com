@@ -283,4 +283,4 @@
   var pl = document.getElementById("preloader"); if (pl) pl.remove();
   if (demo && $("#jfz-demo-aviso")) $("#jfz-demo-aviso").hidden = false;
 })();
-(function () { var m = document.getElementById("jfz-mapa"); if (m && window.JFZ_CONFIG && window.JFZ_CONFIG.MAPA_URL) m.src = window.JFZ_CONFIG.MAPA_URL; })();
+(function () { var m = document.getElementById("jfz-mapa"); if (m && window.JFZ_CONFIG && /^https:\/\/www\.google\.com\/maps\/embed/.test(window.JFZ_CONFIG.MAPA_URL || "")) m.src = window.JFZ_CONFIG.MAPA_URL; })();

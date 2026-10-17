@@ -34,6 +34,9 @@ window.JFZ_CONFIG = {
     appId: "1:37802242353:web:8be17d57ee76a34b324010"
   },
 
-  // 5) Mapa de la página Contacto (ver la guía para obtener el enlace "insertar mapa")
-  MAPA_URL: "https://maps.app.goo.gl/R5f2fJRUgF6eZJ6Z9"
+  // 5) Mapa de la página Contacto. Debe ser el enlace de "Insertar un mapa" de Google Maps
+  //    (empieza por https://www.google.com/maps/embed?pb=...). Los enlaces cortos tipo
+  //    maps.app.goo.gl NO funcionan aquí y se ignoran. Mientras tanto se muestra Medellín.
+  //    Tu enlace corto (guardado por si lo necesitas): https://maps.app.goo.gl/R5f2fJRUgF6eZJ6Z9
+  MAPA_URL: ""
 };
