@@ -12,8 +12,8 @@ from PIL import Image, ImageOps
 # ------------------------- AJUSTES (puedes cambiarlos) -------------------------
 CALIDAD = 80            # 70 = mas liviano, 85 = mas calidad. Recomendado: 80
 LADO_MAXIMO = 1920      # lado mas largo en pixeles. 0 = no reducir
-ANCHO_MARCA = 1      # ancho de la marca de agua = 60% del ancho de la foto (0.35 = mas pequena)
-OPACIDAD = 0.7          # 1 = tal como es tu PNG; mas de 1 = mas visible; menos de 1 = mas tenue
+ANCHO_MARCA = 0.6      # ancho de la marca de agua = 60% del ancho de la foto (0.35 = mas pequena)
+OPACIDAD = 0.5          # 1 = tal como es tu PNG; mas de 1 = mas visible; menos de 1 = mas tenue
 POSICION = "centro"     # "centro" o "abajo-derecha"
 # -------------------------------------------------------------------------------
 
