@@ -57,7 +57,7 @@ def leer_fechas_manuales():
         except ValueError as e:
             print(f"AVISO fechas.txt línea {n}: la ignoro ({e}). Formato: carpeta | fotos | AAAA-MM-DD")
             continue
-        reglas.setdefault(partes[0], []).append((partes[1], partes[2]))
+        reglas.setdefault(partes[0].lower(), []).append((partes[1], partes[2]))
     return reglas
 
 
@@ -67,7 +67,7 @@ def fechas_de_seccion(carpeta, fotos, rutas, reglas):
     resultado = {f: fecha_exif(rutas / f) for f in fotos}
     puestas = set()
     pendientes = []
-    for selector, fecha in reglas.get(carpeta, []):
+    for selector, fecha in reglas.get(carpeta.lower(), []):
         if selector == "*":
             pendientes.append(fecha)
             continue
@@ -94,6 +94,8 @@ for linea in (FOTOS / "trimestres.txt").read_text(encoding="utf-8").splitlines()
     if not linea or linea.startswith("#") or "|" not in linea:
         continue
     carpeta, titulo = [x.strip() for x in linea.split("|", 1)]
+    reales = {d.name.lower(): d.name for d in FOTOS.iterdir() if d.is_dir()}
+    carpeta = reales.get(carpeta.lower(), carpeta)   # GitHub distingue Legado de legado: se usa el nombre real
     ruta = FOTOS / carpeta
     ruta.mkdir(exist_ok=True)
     fotos = sorted(p.name for p in ruta.iterdir() if p.suffix.lower() in EXT)

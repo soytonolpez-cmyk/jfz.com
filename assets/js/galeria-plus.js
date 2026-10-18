@@ -4,6 +4,8 @@
   var MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
   var box = document.getElementById("jfz-galeria");
   if (!box) return;
+  var barra = document.getElementById("jfz-tabs");
+  if (barra && S.length < 2) barra.style.display = "none";   // con una sola sección no hacen falta pestañas
 
   function mosaico() {
     if (box.getAttribute("data-plus") || !box.querySelector(".jfz-card")) return;
