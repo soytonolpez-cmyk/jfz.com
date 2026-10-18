@@ -1,0 +1,13 @@
+# FECHAS DE LAS FOTOS (opcional)
+# Si tus fotos ya traen la fecha dentro (RawTherapee la conserva), NO necesitas escribir nada aqui.
+# Usa este archivo solo para poner o CAMBIAR fechas a mano.
+#
+# Formato (3 partes separadas por |):   carpeta | fotos | fecha
+#   - carpeta: la misma de trimestres.txt (t3, t4, ...)
+#   - fotos:   un nombre sin .jpg/.webp, o un rango con la palabra "a", o * para "todas las que aun no tengan fecha"
+#   - fecha:   AAAA-MM-DD  (primero el año, luego mes, luego dia)
+#
+# Ejemplos (quita el # del inicio para activarlos):
+# t4 | IMG_6001 a IMG_6040 | 2026-10-12
+# t4 | IMG_6041 | 2026-10-13
+# t4 | * | 2026-10-14

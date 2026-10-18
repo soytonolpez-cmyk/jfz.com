@@ -13,7 +13,7 @@
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function money(n) { return "$" + Number(n).toLocaleString("es-CO"); }
-  function base(f) { return f.replace(/\.jpg$/i, ""); }
+  function base(f) { return f.replace(/\.(jpe?g|png|webp)$/i, ""); }
   var SERV = {};
   (C.SERVICIOS || []).forEach(function (x) { SERV[x.id] = x; });
   function isSvc(x) { return x.indexOf("svc:") === 0; }
@@ -178,7 +178,7 @@
 
   /* ---------- página del carrito ---------- */
   function compact(files) {
-    var nums = files.map(function (f) { var m = f.match(/^IMG_(\d+)\.jpg$/i); return m ? +m[1] : null; });
+    var nums = files.map(function (f) { var m = f.match(/^IMG_(\d+)\.(?:jpe?g|png|webp)$/i); return m ? +m[1] : null; });
     if (nums.some(function (n) { return n === null; })) return files.join(", ");
     nums.sort(function (a, b) { return a - b; });
     var out = [], s = nums[0], p = s;
