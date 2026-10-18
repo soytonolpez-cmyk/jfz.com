@@ -1,7 +1,4 @@
 # Una línea por trimestre:   carpeta | Título que se ve en el menú
 # El orden de arriba hacia abajo es el orden del menú.
 # Para crear uno nuevo: crea la carpeta dentro de "fotos", agrega su línea aquí y ejecuta herramientas/actualizar_galeria.py
-legado | Legado
-t1 | 1er Trimestre 2026
-t2 | 2do Trimestre 2026
-t3 | 3er Trimestre 2026
+legacy | Legado
