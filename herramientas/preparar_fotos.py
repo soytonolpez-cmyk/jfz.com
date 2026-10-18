@@ -12,8 +12,8 @@ from PIL import Image, ImageOps
 # ------------------------- AJUSTES (puedes cambiarlos) -------------------------
 CALIDAD = 80            # 70 = mas liviano, 85 = mas calidad. Recomendado: 80
 LADO_MAXIMO = 1920      # lado mas largo en pixeles. 0 = no reducir
-ANCHO_MARCA = 0.35      # ancho de la marca de agua = 35% del ancho de la foto
-OPACIDAD = 0.45         # 0 = invisible, 1 = totalmente opaca
+ANCHO_MARCA = 0.60      # ancho de la marca de agua = 60% del ancho de la foto (0.35 = mas pequena)
+OPACIDAD = 1.5          # 1 = tal como es tu PNG; mas de 1 = mas visible; menos de 1 = mas tenue
 POSICION = "centro"     # "centro" o "abajo-derecha"
 # -------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ def poner_marca(im, marca):
     w = max(1, int(im.width * ANCHO_MARCA))
     h = max(1, int(marca.height * w / marca.width))
     m = marca.resize((w, h), Image.LANCZOS)
-    m.putalpha(m.getchannel("A").point(lambda a: int(a * OPACIDAD)))
+    m.putalpha(m.getchannel("A").point(lambda a: min(255, int(a * OPACIDAD))))
     if POSICION == "abajo-derecha":
         pos = (im.width - w - int(im.width * 0.03), im.height - h - int(im.width * 0.03))
     else:
@@ -64,6 +64,12 @@ def main():
     marca = None
     if MARCA.exists():
         marca = Image.open(MARCA).convert("RGBA")
+        caja = marca.getchannel("A").getbbox()      # quita los bordes transparentes para centrar bien
+        if caja:
+            marca = marca.crop(caja)
+        print(f"Marca de agua: {marca.width}x{marca.height} px, una sola, en el {POSICION}.")
+        if marca.width > 1500 or marca.height > 1500:
+            print("AVISO: tu marca_agua.png es enorme. Debe ser UN solo logo, no una imagen con el logo repetido.")
     else:
         print("!! No encontre herramientas/marca_agua.png: las fotos saldrian SIN marca de agua.")
         print("!! Tu repositorio es publico: cualquiera podria descargarlas limpias.")

@@ -4,6 +4,7 @@ set PYTHONIOENCODING=utf-8
 cd /d "%~dp0.."
 echo === 1/3 Parche del sitio ===
 py herramientas\parche_webp.py
+py herramientas\parche_galeria.py
 echo.
 echo === 2/3 Convirtiendo fotos nuevas a WebP ===
 py herramientas\preparar_fotos.py
