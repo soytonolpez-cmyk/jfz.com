@@ -4132,5 +4132,31 @@ window.JFZ_FOTOS = [
       "IMG_6048.webp": "2026-10-19",
       "IMG_6050.webp": "2026-10-19"
     }
+  },
+  {
+    "id": "t9test",
+    "titulo": "Prueba Trimestre",
+    "carpeta": "t9test",
+    "fotos": [
+      "IMG_9001.webp",
+      "IMG_9002.webp"
+    ],
+    "fechas": {
+      "IMG_9002.webp": "2026-01-05"
+    },
+    "etiquetas": {
+      "IMG_9001.webp": [
+        "moto",
+        "casco"
+      ],
+      "IMG_9002.webp": [
+        "caras"
+      ]
+    },
+    "todas_etiquetas": [
+      "caras",
+      "casco",
+      "moto"
+    ]
   }
 ];

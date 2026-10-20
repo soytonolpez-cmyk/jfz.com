@@ -1,13 +1,28 @@
 """Convierte tus fotos terminadas a WebP (liviano), con marca de agua, y las deja en fotos/<carpeta>/.
 
 Como se usa (lo normal es hacerlo con el archivo preparar_y_actualizar.bat, doble clic):
-  1. Exporta tus fotos desde RawTherapee como JPG (o TIFF/PNG) a una carpeta DENTRO de "por-procesar",
-     con el mismo nombre de la carpeta del trimestre.  Ejemplo:  por-procesar/t4/IMG_6001.jpg
+  1. Mete tus fotos DENTRO de "por-procesar", en una carpeta por trimestre.
+     Ejemplos:  por-procesar/t4/IMG_6001.jpg   o   por-procesar/t4/IMG_6001.CR2
+     Se aceptan JPG/PNG/TIFF y RAW de camara profesional (.CR2 .CR3 .NEF .ARW .RAF .DNG .RW2 .ORF .PEF).
+     Los RAW se revelan aqui mismo (con la fecha EXIF original) -> JPG temporal -> WebP.
   2. Ejecuta este programa. Crea  fotos/t4/IMG_6001.webp
-La carpeta "por-procesar" NO se sube a GitHub (asi tus originales sin marca de agua quedan solo en tu PC).
+La carpeta "por-procesar" NO se sube a GitHub (asi tus originales quedan solo en tu PC).
+Si usaste antes la carpeta fotos/Legado: pasa su contenido a por-procesar (o ejecuta
+herramientas/migrar_legado.py) y borra la linea "Legado | ..." de fotos/trimestres.txt.
 """
 from pathlib import Path
 from PIL import Image, ImageOps
+
+try:
+    import rawpy          # revelado RAW: py -m pip install rawpy
+except ImportError:
+    rawpy = None
+try:
+    import pillow_heif    # HEIC/HEIF de iPhone: py -m pip install pillow-heif
+except ImportError:
+    pillow_heif = None
+else:
+    pillow_heif.register_heif_opener()
 
 # ------------------------- AJUSTES (puedes cambiarlos) -------------------------
 CALIDAD = 80            # 70 = mas liviano, 85 = mas calidad. Recomendado: 80
@@ -21,8 +36,25 @@ RAIZ = Path(__file__).resolve().parent.parent
 ENTRADA = RAIZ / "por-procesar"
 SALIDA = RAIZ / "fotos"
 MARCA = RAIZ / "herramientas" / "marca_agua.png"
-EXTENSIONES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
+EXTENSIONES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".heic", ".heif"}
+EXT_RAW = {".cr2", ".cr3", ".nef", ".arw", ".raf", ".dng", ".rw2", ".orf", ".pef", ".raw"}
 Image.MAX_IMAGE_PIXELS = None
+
+
+def revelar_raw(origen, destino_jpg):
+    """RAW (CR2/NEF/ARW...) -> JPG temporal. Devuelve la fecha 'AAAA-MM-DD' del RAW o None."""
+    import io
+    with rawpy.imread(str(origen)) as r:
+        jpg = r.postprocess(use_auto_wb=True)          # revelado basico de LibRaw
+    try:
+        meta = r.other
+        fecha = str(getattr(meta, "capture_time", "") or "").strip()[:10].replace("/", "-")
+    except Exception:
+        fecha = ""
+    if not (len(fecha) == 10 and fecha[4] == "-" and fecha[7] == "-"):
+        fecha = ""
+    Image.open(io.BytesIO(jpg)).save(destino_jpg, "JPEG", quality=95)
+    return fecha or None
 
 
 def poner_marca(im, marca):
@@ -55,6 +87,19 @@ def convertir(origen, destino, marca):
         im.save(destino, "WEBP", quality=CALIDAD, method=6, exif=exif, **extra)
 
 
+def registrar_fecha(carpeta, nombre_sin_ext, fecha):
+    """Agrega una linea a fotos/fechas.txt para que la foto conserve su fecha (los RAW no traen EXIF visible)."""
+    txt = RAIZ / "fotos" / "fechas.txt"
+    linea = f"{carpeta} | {nombre_sin_ext} | {fecha}\n"
+    existentes = txt.read_text(encoding="utf-8").splitlines() if txt.exists() else []
+    for l in existentes:
+        p = [x.strip() for x in l.split("|")]
+        if len(p) == 3 and p[0].lower() == carpeta.lower() and p[1].lower() == nombre_sin_ext.lower():
+            return                      # ya estaba registrada
+    with txt.open("a", encoding="utf-8") as f:
+        f.write(linea)
+
+
 def main():
     ENTRADA.mkdir(exist_ok=True)
     carpetas = sorted(p for p in ENTRADA.iterdir() if p.is_dir())
@@ -79,22 +124,40 @@ def main():
     registradas = (SALIDA / "trimestres.txt").read_text(encoding="utf-8")
     total = 0
     for carpeta in carpetas:
-        fotos = sorted(p for p in carpeta.iterdir() if p.suffix.lower() in EXTENSIONES)
+        archivos = sorted(p for p in carpeta.iterdir() if p.suffix.lower() in EXTENSIONES | EXT_RAW)
         destino_dir = SALIDA / carpeta.name
         destino_dir.mkdir(exist_ok=True)
         nuevas = 0
-        for f in fotos:
+        temporales = []
+        for f in archivos:
             destino = destino_dir / (f.stem + ".webp")
+            origen = f
             if destino.exists():
                 continue                          # ya estaba hecha: no se repite
             try:
-                convertir(f, destino, marca)
+                if f.suffix.lower() in EXT_RAW:   # RAW -> JPG temporal (primero JPG, luego WebP)
+                    if rawpy is None:
+                        print(f"  AVISO: {f.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
+                        continue
+                    tmp = RAIZ / "herramientas" / "__tmp__" / f"{carpeta.name}_{f.stem}.jpg"
+                    tmp.parent.mkdir(exist_ok=True)
+                    fecha_raw = revelar_raw(f, tmp)
+                    origen = tmp
+                    temporales.append(tmp)
+                    if fecha_raw:
+                        registrar_fecha(carpeta.name, f.stem, fecha_raw)
+                convertir(origen, destino, marca)
                 nuevas += 1
                 print(f"  OK  {carpeta.name}/{destino.name}  ({destino.stat().st_size // 1024} KB)")
             except Exception as e:
                 print(f"  ERROR con {f.name}: {e}")
+        for tmp in temporales:
+            try:
+                tmp.unlink()                      # borra los JPG temporales
+            except OSError:
+                pass
         total += nuevas
-        print(f"{carpeta.name}: {nuevas} fotos nuevas ({len(fotos) - nuevas} ya existian).")
+        print(f"{carpeta.name}: {nuevas} fotos nuevas ({len(archivos) - nuevas} ya existian).")
         if carpeta.name not in [l.split("|")[0].strip() for l in registradas.splitlines() if "|" in l]:
             print(f"  AVISO: agrega esta linea en fotos/trimestres.txt para que se vea en el sitio:")
             print(f"         {carpeta.name} | Titulo que quieras (ej. 4to Trimestre 2026)")
