@@ -38,6 +38,35 @@ a:hover { color: var(--accent-hover); }
 .jfz-sec-title small { font: 400 14px var(--nav-font); color: rgba(255,255,255,.55); letter-spacing: .08em; margin-left: 10px; }
 .jfz-empty { color: rgba(255,255,255,.6); }
 
+/* ---------- buscador con filtros estilo Mercado Libre ---------- */
+.jfz-buscador { background: var(--surface-color, #fff); border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 14px 16px; margin: 0 0 22px; box-shadow: 0 2px 10px rgba(0,0,0,.06); display: flex; flex-direction: column; gap: 12px; }
+.jfz-buscar-linea { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.jfz-buscar-caja { position: relative; flex: 1 1 260px; min-width: 220px; }
+.jfz-buscar-caja i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: .55; pointer-events: none; }
+.jfz-buscar-caja input { width: 100%; padding: 10px 12px 10px 36px; border: 2px solid #e0e3e8; border-radius: 8px; font: 400 15px/1.4 "Roboto", sans-serif; background: #fff; color: #222; }
+.jfz-buscar-caja input:focus { outline: none; border-color: var(--accent-color, #ffd400); box-shadow: 0 0 0 3px rgba(255,212,0,.18); }
+.jfz-buscar-linea label { display: inline-flex; align-items: center; gap: 6px; font: 500 13px "Oswald", sans-serif; letter-spacing: .03em; text-transform: uppercase; color: #555; }
+.jfz-buscar-linea input[type="date"] { border: 2px solid #e0e3e8; border-radius: 8px; padding: 7px 9px; font: 400 14px "Roboto", sans-serif; background: #fff; color: #222; }
+.jfz-buscar-linea input[type="date"]:focus { outline: none; border-color: var(--accent-color, #ffd400); }
+.jfz-buscar-linea select { border: 2px solid #e0e3e8; border-radius: 8px; padding: 8px 10px; font: 400 14px "Roboto", sans-serif; background: #fff; color: #222; cursor: pointer; }
+.jfz-buscar-linea select:focus { outline: none; border-color: var(--accent-color, #ffd400); }
+.jfz-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.jfz-tag { border: 1.5px solid #d7dbe0; background: #f4f6f8; color: #333; border-radius: 999px; padding: 6px 14px; font: 500 13px "Oswald", sans-serif; letter-spacing: .03em; cursor: pointer; transition: all .15s; }
+.jfz-tag:hover { border-color: var(--accent-color, #ffd400); background: #fffbe6; }
+.jfz-tag.on { background: var(--accent-color, #ffd400); border-color: var(--accent-color, #ffd400); color: #111; font-weight: 600; }
+.jfz-trims { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 500 13px "Oswald", sans-serif; letter-spacing: .03em; text-transform: uppercase; color: #555; }
+.jfz-trim { display: inline-flex; align-items: center; gap: 5px; text-transform: none; font-family: "Roboto", sans-serif; font-size: 14px; font-weight: 400; color: #222; cursor: pointer; border: 1.5px solid #e0e3e8; border-radius: 8px; padding: 5px 10px; background: #fff; }
+.jfz-trim:hover { border-color: var(--accent-color, #ffd400); }
+.jfz-trim input { accent-color: var(--accent-color, #ffd400); cursor: pointer; }
+.jfz-filtros-activos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.jfz-chip { display: inline-flex; align-items: center; gap: 6px; background: #eef4ff; border: 1px solid #cddffb; color: #1d4ed8; border-radius: 999px; padding: 4px 6px 4px 12px; font: 400 13px "Roboto", sans-serif; }
+.jfz-chip button { border: none; background: transparent; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; padding: 0; }
+.jfz-chip button:hover { background: rgba(29,78,216,.15); }
+.jfz-limpiar { border: 1.5px dashed #c9ced6; background: transparent; color: #555; border-radius: 999px; padding: 5px 12px; font: 500 13px "Oswald", sans-serif; cursor: pointer; }
+.jfz-limpiar:hover { border-color: #dc3545; color: #dc3545; }
+.jfz-contador { font: 500 14px "Roboto", sans-serif; color: #555; }
+@media (max-width: 575.98px) { .jfz-buscar-linea { flex-direction: column; align-items: stretch; } .jfz-buscar-linea label { justify-content: space-between; } }
+
 /* Tarjetas de fotos */
 .jfz-card { margin: 0; background: #0d0d0d; border-radius: 10px; overflow: hidden; border: 2px solid transparent; transition: border-color .2s; }
 .jfz-card.is-selected { border-color: var(--accent-color); }
