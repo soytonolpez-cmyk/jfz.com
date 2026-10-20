@@ -2,6 +2,9 @@
 chcp 65001 >nul
 set PYTHONIOENCODING=utf-8
 cd /d "%~dp0.."
+echo === 0/3 Consolidando botones del sitio ===
+py herramientas\consolidar_sitio.py
+echo.
 echo === 1/3 Parche del sitio ===
 py herramientas\parche_webp.py
 py herramientas\parche_galeria.py

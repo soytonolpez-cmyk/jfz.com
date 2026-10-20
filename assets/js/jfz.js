@@ -43,9 +43,10 @@
       '<li><a href="about.html"' + act("sobre-mi") + ">Sobre mí</a></li>" +
       '<li class="dropdown"><a href="gallery.html"' + act("galeria") + '><span>Galería</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a><ul>' + sub + "</ul></li>" +
       '<li><a href="services.html"' + act("servicios") + ">Servicios</a></li>" +
+      '<li><a href="herramientas/index.html"' + act("herramientas") + ">Herramientas</a></li>" +
       '<li><a href="contact.html"' + act("contacto") + ">Contacto</a></li>" +
       '</ul><i class="mobile-nav-toggle d-xl-none bi bi-list"></i></nav>' +
-      '<div class="jfz-actions">' +
+      '<div class="jfz-actions"><a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fotos" title="Buscar fotos"><i class="bi bi-search"></i></a>' +
       '<a class="jfz-cart-link" href="carrito.html" aria-label="Carrito de compras"><i class="bi bi-cart3"></i><span class="jfz-badge" id="jfz-badge">0</span></a>' +
       '<button type="button" id="jfz-auth" class="jfz-auth"></button></div></div>';
     var f = $("#footer");
@@ -55,6 +56,7 @@
         .map(function (x) { return '<a href="' + C[x[0]] + '" target="_blank" rel="noopener" aria-label="' + x[0] + '"><i class="bi ' + x[1] + '"></i></a>'; }).join("");
       f.innerHTML = '<div class="container"><div class="copyright text-center"><p>© <span>Copyright</span> <strong class="px-1 sitename">JuanetoFZ</strong> <span>Todos los derechos reservados</span></p></div>' +
         '<div class="social-links d-flex justify-content-center">' + soc + "</div>" +
+        '<div class="jfz-pie-herr"><a href="herramientas/index.html"><i class="bi bi-tool"></i> Herramientas del fotógrafo</a></div>' +
         '<div class="credits">Diseñado por <a href="https://bootstrapmade.com/">BootstrapMade</a></div></div>';
     }
     $$("[data-cfg]").forEach(function (el) { var k = el.getAttribute("data-cfg"); if (C[k]) el.textContent = C[k]; });
@@ -212,6 +214,7 @@
     pintarGaleria();
     tabs.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) location.hash = b.getAttribute("data-id"); });
     window.addEventListener("hashchange", showTab);
+    if (location.hash === "#buscar") { setTimeout(function () { var bq = $("#jfz-q"); if (bq) { try { bq.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }
     showTab(); syncCart();
   }
   /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
