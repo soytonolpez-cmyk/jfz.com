@@ -132,8 +132,9 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
               <div class="jfz-serv">
                 <i class="bi bi-bag-check"></i>
                 <h3>Pedido + originales</h3>
-                <p>Desde el carrito, el botón «Descargar pedido (.ps1)» te da el script de PowerShell que copia los originales del pedido a una carpeta.</p>
+                <p>El botón «Descargar pedido (.ps1)» del carrito genera un script de PowerShell que copia los <strong>originales</strong> (RAW/CR2/JPG) del pedido desde <code>por-procesar/</code> a una carpeta de entrega. Aquí tienes también el modelo manual: pásale los nombres como argumentos.</p>
                 <a class="jfz-svc-add" href="../carrito.html"><i class="bi bi-cart3"></i> Ir al carrito</a>
+                <a class="jfz-svc-add" href="pedido.ps1" download><i class="bi bi-download"></i> Descargar pedido.ps1</a>
               </div>
             </div>
             <div class="col-md-6 col-xl-4">
