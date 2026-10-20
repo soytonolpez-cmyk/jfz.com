@@ -3,3 +3,4 @@
 # Para crear una nueva: crea la carpeta dentro de "fotos" (en minúsculas, sin espacios ni tildes),
 # agrega su línea aquí y ejecuta herramientas/preparar_y_actualizar.bat
 Legado | Legado
+t9test | Prueba Trimestre

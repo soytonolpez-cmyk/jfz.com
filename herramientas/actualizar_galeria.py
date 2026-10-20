@@ -5,10 +5,12 @@ Uso (desde una consola dentro de la carpeta del proyecto):
 
 Lee   fotos/trimestres.txt        (carpeta | Título)
       fotos/fechas.txt            (opcional: fechas puestas a mano, ver el archivo)
+      fotos/etiquetas.txt         (opcional: etiquetas para el buscador, ver el archivo)
 y las fotos de cada carpeta       fotos/<carpeta>/
 Crea  assets/js/fotos.js          (lo que usa el sitio)
 
 La fecha de cada foto sale de: 1) fotos/fechas.txt, 2) la fecha guardada dentro de la foto (EXIF).
+Las etiquetas salen de fotos/etiquetas.txt (formato: fotos | moto,casco,caras).
 """
 import json
 from datetime import datetime
@@ -87,7 +89,49 @@ def fechas_de_seccion(carpeta, fotos, rutas, reglas):
     return {f: d for f, d in resultado.items() if d}
 
 
+def leer_etiquetas():
+    """fotos/etiquetas.txt -> [(selector, [etiqueta, ...]), ...] para TODAS las carpetas.
+
+    Formato de linea:  fotos | moto,casco,caras   (sin carpeta: las etiquetas valen en todo el sitio)
+      - fotos: un nombre sin .jpg/.webp, o un rango con la palabra " a ".
+    El orden importa: la ultima regla que toque una foto reemplaza sus etiquetas.
+    """
+    reglas, ruta = [], FOTOS / "etiquetas.txt"
+    if not ruta.exists():
+        return reglas
+    for n, linea in enumerate(ruta.read_text(encoding="utf-8").splitlines(), 1):
+        linea = linea.strip()
+        if not linea or linea.startswith("#"):
+            continue
+        partes = [x.strip() for x in linea.split("|")]
+        if len(partes) != 2:
+            print(f"AVISO etiquetas.txt linea {n}: la ignoro. Formato: fotos | moto,casco")
+            continue
+        sel, lista = partes[0], [e.strip().lower() for e in partes[1].replace(";", ",").split(",") if e.strip()]
+        if not sel or not lista:
+            print(f"AVISO etiquetas.txt linea {n}: falta la lista de fotos o las etiquetas.")
+            continue
+        reglas.append((sel, lista))
+    return reglas
+
+
+def etiquetas_de_seccion(fotos, rutas, reglas):
+    """Calcula las etiquetas de cada foto desde fotos/etiquetas.txt -> {foto: [etiqueta, ...]}"""
+    stems = [Path(f).stem for f in fotos]
+    resultado = {}
+    for selector, lista in reglas:
+        ext = [s.strip() for s in selector.replace(" a ", "|").split("|")]
+        try:
+            ini, fin = stems.index(ext[0]), stems.index(ext[-1])
+        except ValueError:
+            continue   # la regla no pertenece a esta seccion: se ignora en silencio
+        for i in range(min(ini, fin), max(ini, fin) + 1):
+            resultado[fotos[i]] = list(lista)
+    return {f: v for f, v in resultado.items() if v}
+
+
 reglas = leer_fechas_manuales()
+etiquetas_reglas = leer_etiquetas()
 secciones = []
 for linea in (FOTOS / "trimestres.txt").read_text(encoding="utf-8").splitlines():
     linea = linea.strip()
@@ -103,8 +147,12 @@ for linea in (FOTOS / "trimestres.txt").read_text(encoding="utf-8").splitlines()
     fechas = fechas_de_seccion(carpeta, fotos, ruta, reglas)
     if fechas:
         seccion["fechas"] = fechas
+    ets = etiquetas_de_seccion(fotos, ruta, etiquetas_reglas)
+    if ets:
+        seccion["etiquetas"] = ets
+        seccion["todas_etiquetas"] = sorted({e for v in ets.values() for e in v})
     secciones.append(seccion)
-    print(f"{titulo}: {len(fotos)} fotos ({len(fechas)} con fecha, {len(fotos) - len(fechas)} sin fecha)")
+    print(f"{titulo}: {len(fotos)} fotos ({len(fechas)} con fecha, {len(ets)} con etiquetas)")
 
 (RAIZ / "assets/js/fotos.js").write_text(
     "/* ARCHIVO GENERADO por herramientas/actualizar_galeria.py - no lo edites a mano */\n"

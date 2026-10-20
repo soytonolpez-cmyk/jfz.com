@@ -1,0 +1,16 @@
+# ETIQUETAS DE LAS FOTOS (para el buscador y los filtros de la galería)
+#
+# Formato (2 partes separadas por |):   fotos | etiquetas
+#   - fotos:     un nombre sin .jpg/.webp, o un rango con la palabra "a" (ej: IMG_6001 a IMG_6040)
+#   - etiquetas: una o varias separadas por coma. Ejemplos de uso: moto, casco, caras
+#
+# El orden importa: la última regla que toque una foto manda (igual que en fechas.txt).
+# Una foto puede tener varias etiquetas (moto,caras). Las etiquetas se ven tal cual en el sitio.
+# Después de editar este archivo ejecuta herramientas/preparar_y_actualizar.bat
+#
+# Ejemplos (quita el # del inicio para activarlos):
+# IMG_1468 | moto
+# IMG_1674 a IMG_1680 | moto,casco
+# IMG_1718 | caras
+IMG_9001 | moto,casco
+IMG_9002 | caras

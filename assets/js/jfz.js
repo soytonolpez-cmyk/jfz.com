@@ -133,7 +133,59 @@
     renderCartPage();
   }
 
-  /* ---------- galería ---------- */
+  /* ---------- galería + buscador (etiquetas, fechas, trimestres) ---------- */
+  var EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
+  var ETIQUETAS_SITIO = [];
+  S.forEach(function (s) { (s.todas_etiquetas || []).forEach(function (e) { if (ETIQUETAS_SITIO.indexOf(e) < 0) ETIQUETAS_SITIO.push(e); }); });
+  ETIQUETAS_SITIO.sort();
+  function fechaDe(s, f) { return (s.fechas && s.fechas[f]) || ""; }
+  function trimestreDe(fecha) { if (!fecha) return ""; var p = fecha.split("-"); return p[0] + "-T" + (Math.floor((+p[1] - 1) / 3) + 1); }
+  function textoBusca(s, f) { var e = (s.etiquetas && s.etiquetas[f]) || []; return (base(f) + " " + s.titulo + " " + e.join(" ") + " " + fechaDe(s, f)).toLowerCase(); }
+  function pasaFiltro(s, f) {
+    if (EST.q) { var t = textoBusca(s, f), pals = EST.q.toLowerCase().split(/\s+/); for (var i = 0; i < pals.length; i++) if (pals[i] && t.indexOf(pals[i]) < 0) return false; }
+    if (EST.etiquetas.length) { var e = (s.etiquetas && s.etiquetas[f]) || []; for (var j = 0; j < EST.etiquetas.length; j++) if (e.indexOf(EST.etiquetas[j]) < 0) return false; }
+    var d = fechaDe(s, f);
+    if (EST.desde && (!d || d < EST.desde)) return false;
+    if (EST.hasta && (!d || d > EST.hasta)) return false;
+    if (EST.trim.length && EST.trim.indexOf(trimestreDe(d)) < 0) return false;
+    return true;
+  }
+  function hayFiltros() { return !!(EST.q || EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || EST.orden); }
+  function chipHTML(txt, accion, val) { return '<span class="jfz-chip">' + esc(txt) + '<button type="button" data-acc="' + accion + '" data-v="' + esc(val || "") + '" aria-label="Quitar filtro"><i class="bi bi-x-lg"></i></button></span>'; }
+  function renderChips() {
+    var box = $("#jfz-filtros-activos"); if (!box) return;
+    var c = [];
+    if (EST.q) c.push(chipHTML('busca: "' + EST.q + '"', "q"));
+    EST.etiquetas.forEach(function (e) { c.push(chipHTML("#" + e, "tag", e)); });
+    if (EST.desde) c.push(chipHTML("desde " + EST.desde, "desde"));
+    if (EST.hasta) c.push(chipHTML("hasta " + EST.hasta, "hasta"));
+    EST.trim.forEach(function (t) { c.push(chipHTML(t, "trim", t)); });
+    if (EST.orden) c.push(chipHTML(EST.orden === "asc" ? "fecha ↑ antiguas primero" : "fecha ↓ nuevas primero", "orden"));
+    box.innerHTML = c.length ? c.join("") + '<button type="button" class="jfz-limpiar" data-acc="limpiar"><i class="bi bi-arrow-counterclockwise"></i> Limpiar todo</button>' : "";
+    box.hidden = !c.length;
+  }
+  function trimsDelSitio() {
+    var trims = {};
+    S.forEach(function (s) { s.fotos.forEach(function (f) { var t = trimestreDe(fechaDe(s, f)); if (t) trims[t] = 1; }); });
+    return Object.keys(trims).sort();
+  }
+  function buscadorHTML() {
+    if (!S.length) return "";
+    var listaTrims = trimsDelSitio();
+    return '<div class="jfz-buscador" id="jfz-buscador">' +
+      '<div class="jfz-buscar-linea">' +
+        '<div class="jfz-buscar-caja"><i class="bi bi-search"></i><input type="search" id="jfz-q" placeholder="Buscar por etiqueta o nombre (moto, casco, caras…)" value="' + esc(EST.q) + '" autocomplete="off"></div>' +
+        '<label>Desde <input type="date" id="jfz-desde" value="' + esc(EST.desde) + '" title="Fecha mínima"></label>' +
+        '<label>Hasta <input type="date" id="jfz-hasta" value="' + esc(EST.hasta) + '" title="Fecha máxima"></label>' +
+        '<select id="jfz-orden"><option value="">Ordenar…</option><option value="desc"' + (EST.orden === "desc" ? " selected" : "") + '>Fecha: nuevas primero</option><option value="asc"' + (EST.orden === "asc" ? " selected" : "") + '>Fecha: antiguas primero</option></select>' +
+      '</div>' +
+      (ETIQUETAS_SITIO.length ? '<div class="jfz-tags">' + ETIQUETAS_SITIO.map(function (e) { return '<button type="button" class="jfz-tag' + (EST.etiquetas.indexOf(e) >= 0 ? " on" : "") + '" data-t="' + esc(e) + '">#' + esc(e) + "</button>"; }).join("") + "</div>" : "") +
+      (listaTrims.length ? '<div class="jfz-trims"><span>Trimestres:</span>' + listaTrims.map(function (t) { return '<label class="jfz-trim"><input type="checkbox" value="' + t + '"' + (EST.trim.indexOf(t) >= 0 ? " checked" : "") + "> " + t + "</label>"; }).join("") + "</div>" : "") +
+      '<div class="jfz-filtros-activos" id="jfz-filtros-activos" hidden></div>' +
+      '<div class="jfz-contador" id="jfz-contador"></div>' +
+    "</div>";
+  }
+
   function cardHTML(f, grupo, carpeta) {
     var n = base(f);
     return '<div class="col-xl-3 col-lg-4 col-md-6"><figure class="jfz-card">' +
@@ -152,14 +204,76 @@
     var box = $("#jfz-galeria"); if (!box) return;
     var tabs = $("#jfz-tabs");
     tabs.innerHTML = '<button type="button" data-id="todos">Todos</button>' + S.map(function (s) { return '<button type="button" data-id="' + s.id + '">' + esc(s.titulo) + "</button>"; }).join("");
-    box.innerHTML = S.map(function (s) {
+    box.innerHTML = buscadorHTML() + S.map(function (s) {
       return '<section class="jfz-sec" data-id="' + s.id + '" id="sec-' + s.id + '"><h2 class="jfz-sec-title">' + esc(s.titulo) + ' <small>' + s.fotos.length + " fotos</small></h2>" +
-        '<div class="row gy-4">' + (s.fotos.length ? s.fotos.map(function (f) { return cardHTML(f, s.id, s.carpeta); }).join("") : '<p class="jfz-empty">Próximamente.</p>') + "</div></section>";
+        '<div class="row gy-4"></div></section>';
     }).join("");
-    wireAdd(box);
+    wireBuscador(box);
+    pintarGaleria();
     tabs.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) location.hash = b.getAttribute("data-id"); });
     window.addEventListener("hashchange", showTab);
     showTab(); syncCart();
+  }
+  /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
+  var LIMITE_SECCION = 300;
+  function pintarGaleria() {
+    var total = 0;
+    $$(".jfz-sec").forEach(function (secEl) {
+      var s = S.filter(function (x) { return x.id === secEl.getAttribute("data-id"); })[0];
+      if (!s) return;
+      var visibles = s.fotos.filter(function (f) { return pasaFiltro(s, f); });
+      if (EST.orden) visibles.sort(function (a, b) {
+        var da = fechaDe(s, a), db = fechaDe(s, b);
+        if (!da && !db) return a < b ? -1 : 1;
+        if (!da) return 1; if (!db) return -1;
+        return EST.orden === "asc" ? (da < db ? -1 : da > db ? 1 : (a < b ? -1 : 1)) : (da > db ? -1 : da < db ? 1 : (a < b ? -1 : 1));
+      });
+      total += visibles.length;
+      var fila = secEl.querySelector(".row");
+      fila.innerHTML = visibles.length ? visibles.slice(0, LIMITE_SECCION).map(function (f) { return cardHTML(f, s.id, s.carpeta); }).join("") :
+        (hayFiltros() ? "" : '<p class="jfz-empty">Próximamente.</p>');
+      secEl.hidden = !(visibles.length || !hayFiltros());
+      var small = secEl.querySelector(".jfz-sec-title small");
+      if (small) small.textContent = hayFiltros() ? visibles.length + " de " + s.fotos.length + " fotos" : s.fotos.length + " fotos";
+    });
+    var cont = $("#jfz-contador");
+    if (cont) cont.textContent = hayFiltros() ? (total ? total + (total === 1 ? " foto encontrada" : " fotos encontradas") : "Sin resultados con esos filtros") : "";
+    renderChips();
+    wireAdd(box_galeria());
+    initLightbox(".jfz-sec:not([hidden]) .jfz-lightbox");
+  }
+  function box_galeria() { return $("#jfz-galeria"); }
+  function wireBuscador(root) {
+    var q = $("#jfz-q", root), d1 = $("#jfz-desde", root), d2 = $("#jfz-hasta", root), o = $("#jfz-orden", root);
+    var timerQ;
+    if (q) q.addEventListener("input", function () { clearTimeout(timerQ); timerQ = setTimeout(function () { EST.q = q.value.trim(); pintarGaleria(); }, 250); });
+    if (d1) d1.addEventListener("change", function () { EST.desde = d1.value; pintarGaleria(); });
+    if (d2) d2.addEventListener("change", function () { EST.hasta = d2.value; pintarGaleria(); });
+    if (o) o.addEventListener("change", function () { EST.orden = o.value; pintarGaleria(); });
+    $$(".jfz-tag", root).forEach(function (b) { b.addEventListener("click", function () {
+      var t = b.getAttribute("data-t"), i = EST.etiquetas.indexOf(t);
+      i >= 0 ? EST.etiquetas.splice(i, 1) : EST.etiquetas.push(t);
+      b.classList.toggle("on", i < 0);
+      pintarGaleria();
+    }); });
+    $$("input[type=checkbox]", $(".jfz-trims", root) || root).forEach(function (cb) { cb.addEventListener("change", function () {
+      var t = cb.value, i = EST.trim.indexOf(t);
+      i >= 0 ? EST.trim.splice(i, 1) : EST.trim.push(t);
+      pintarGaleria();
+    }); });
+    var chips = $("#jfz-filtros-activos", root);
+    if (chips) chips.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-acc]"); if (!b) return;
+      var acc = b.getAttribute("data-acc"), v = b.getAttribute("data-v");
+      if (acc === "q") { EST.q = ""; var qi = $("#jfz-q"); if (qi) qi.value = ""; }
+      if (acc === "tag") { EST.etiquetas = EST.etiquetas.filter(function (x) { return x !== v; }); var tb = $('.jfz-tag[data-t="' + v + '"]'); if (tb) tb.classList.remove("on"); }
+      if (acc === "desde") { EST.desde = ""; d1.value = ""; }
+      if (acc === "hasta") { EST.hasta = ""; d2.value = ""; }
+      if (acc === "trim") { EST.trim = EST.trim.filter(function (x) { return x !== v; }); var cb2 = $('.jfz-trims input[value="' + v + '"]'); if (cb2) cb2.checked = false; }
+      if (acc === "orden") { EST.orden = ""; if (o) o.value = ""; }
+      if (acc === "limpiar") { EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" }; renderGallery(); return; }
+      pintarGaleria();
+    });
   }
   function showTab() {
     var id = (location.hash || "").replace("#", ""); if (id !== "todos" && !S.some(function (s) { return s.id === id; })) id = "todos";
