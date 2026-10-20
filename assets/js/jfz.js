@@ -6,6 +6,8 @@
   var MAPA = {};   // nombre de archivo -> ruta completa (carpeta del trimestre)
   S.forEach(function (s) { s.fotos.forEach(function (f) { if (!MAPA[f]) MAPA[f] = RUTA + s.carpeta + "/" + f; }); });
   var user = null, cart = [], pending = null, auth = null, fb = null, lightbox = null;
+  var ORIGINALES = "por-procesar";   // carpeta local donde viven los originales (RAW/JPG); se puede cambiar con window.JFZ_ORIGINALES
+  if (typeof window.JFZ_ORIGINALES === "string" && window.JFZ_ORIGINALES) ORIGINALES = window.JFZ_ORIGINALES;
   var demo = location.protocol === "file:" || !C.FIREBASE || !C.FIREBASE.apiKey || /PEGA/.test(C.FIREBASE.apiKey);
 
   /* ---------- utilidades ---------- */
@@ -43,9 +45,10 @@
       '<li><a href="about.html"' + act("sobre-mi") + ">Sobre mí</a></li>" +
       '<li class="dropdown"><a href="gallery.html"' + act("galeria") + '><span>Galería</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a><ul>' + sub + "</ul></li>" +
       '<li><a href="services.html"' + act("servicios") + ">Servicios</a></li>" +
+      '<li><a href="herramientas/index.html"' + act("herramientas") + ">Herramientas</a></li>" +
       '<li><a href="contact.html"' + act("contacto") + ">Contacto</a></li>" +
       '</ul><i class="mobile-nav-toggle d-xl-none bi bi-list"></i></nav>' +
-      '<div class="jfz-actions">' +
+      '<div class="jfz-actions"><a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fotos" title="Buscar fotos"><i class="bi bi-search"></i></a>' +
       '<a class="jfz-cart-link" href="carrito.html" aria-label="Carrito de compras"><i class="bi bi-cart3"></i><span class="jfz-badge" id="jfz-badge">0</span></a>' +
       '<button type="button" id="jfz-auth" class="jfz-auth"></button></div></div>';
     var f = $("#footer");
@@ -55,6 +58,7 @@
         .map(function (x) { return '<a href="' + C[x[0]] + '" target="_blank" rel="noopener" aria-label="' + x[0] + '"><i class="bi ' + x[1] + '"></i></a>'; }).join("");
       f.innerHTML = '<div class="container"><div class="copyright text-center"><p>© <span>Copyright</span> <strong class="px-1 sitename">JuanetoFZ</strong> <span>Todos los derechos reservados</span></p></div>' +
         '<div class="social-links d-flex justify-content-center">' + soc + "</div>" +
+        '<div class="jfz-pie-herr"><a href="herramientas/index.html"><i class="bi bi-tool"></i> Herramientas del fotógrafo</a></div>' +
         '<div class="credits">Diseñado por <a href="https://bootstrapmade.com/">BootstrapMade</a></div></div>';
     }
     $$("[data-cfg]").forEach(function (el) { var k = el.getAttribute("data-cfg"); if (C[k]) el.textContent = C[k]; });
@@ -212,6 +216,7 @@
     pintarGaleria();
     tabs.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) location.hash = b.getAttribute("data-id"); });
     window.addEventListener("hashchange", showTab);
+    if (location.hash === "#buscar") { setTimeout(function () { var bq = $("#jfz-q"); if (bq) { try { bq.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }
     showTab(); syncCart();
   }
   /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
@@ -333,6 +338,54 @@
     if (url.length > 1900) url = "https://wa.me/" + C.WHATSAPP + "?text=" + encodeURIComponent(buildMessage(true));
     window.open(url, "_blank", "noopener");
   }
+
+  /* ---------- pedido: script PowerShell que copia los ORIGINALES del carrito ---------- */
+  // El sitio solo publica WebP; los RAW/CR2/JPG originales viven en tu PC dentro de por-procesar/.
+  // Este boton genera un .ps1 que recorre por-procesar buscando cada original por su nombre base
+  // (cualquier extension) y lo copia a la carpeta de entrega.
+  function psQuote(s) { return "'" + String(s).replace(/'/g, "''") + "'"; }
+  function buildPedidoPs1() {
+    var ph = photos(), t = totals();
+    var nombres = ph.map(base);
+    var L = [];
+    L.push("# Pedido JFZ generado desde el carrito - " + new Date().toISOString().slice(0, 10));
+    L.push("# Copia los ORIGINALES (RAW/CR2/JPG) de las fotos pedidas hacia una carpeta de entrega.");
+    L.push("# Pon este archivo DENTRO de la carpeta del proyecto (junto a por-procesar\\).");
+    L.push("$Raiz         = Split-Path -Parent $MyInvocation.MyCommand.Path   # donde esta guardado este .ps1");
+    L.push("$Origenes     = Join-Path $Raiz " + psQuote(ORIGINALES));
+    L.push("$Destino      = Join-Path $Raiz ('pedido-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))");
+    L.push("New-Item -ItemType Directory -Force -Path $Destino | Out-Null");
+    L.push("$nombres = @(if ($args.Count -gt 0) { $args } else { @(" + nombres.map(psQuote).join(", ") + ") })");
+    L.push("$encontrados = 0; $faltan = @()");
+    L.push("foreach ($n in $nombres) {");
+    L.push("  $hit = $null");
+    L.push("  if (Test-Path $Origenes) {");
+    L.push("    $hit = Get-ChildItem -LiteralPath $Origenes -Recurse -File | Where-Object { $_.BaseName -ieq $n } | Select-Object -First 1");
+    L.push("  }");
+    L.push("  if (-not $hit) {");
+    L.push("    # respaldo: busca en todo el proyecto (por si moviste la foto de carpeta)");
+    L.push("    $hit = Get-ChildItem -LiteralPath $Raiz -Recurse -File | Where-Object { $_.BaseName -ieq $n -and $_.Extension -notin '.webp','.html','.js','.css','.md' } | Select-Object -First 1");
+    L.push("  }");
+    L.push("  if ($hit) { Copy-Item -LiteralPath $hit.FullName -Destination $Destino -Force; $encontrados++; Write-Host \"OK   $n -> $($hit.Name)\" -ForegroundColor Green }");
+    L.push("  else { $faltan += $n; Write-Host \"FALTA $n (no hay original en $Origenes)\" -ForegroundColor Yellow }");
+    L.push("}");
+    L.push("Write-Host ''");
+    L.push("Write-Host \"$encontrados originales copiados a: $Destino\"");
+    L.push("if ($faltan.Count) { Write-Host \"Faltaron $($faltan.Count): $($faltan -join ', ')\" -ForegroundColor Yellow }");
+    L.push("explorer $Destino");
+    return L.join("\r\n") + "\r\n";
+  }
+  function downloadPedidoPs1() {
+    if (!photos().length) { toast("El carrito no tiene fotos todavía"); return; }
+    var txt = buildPedidoPs1();
+    var blob = new Blob(["\uFEFF" + txt], { type: "text/plain;charset=utf-8" }); // BOM: PowerShell lee bien los acentos
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "pedido_jfz.ps1";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    toast("pedido_jfz.ps1 descargado — guárdalo en la carpeta del proyecto y ejecútalo con: powershell -ExecutionPolicy Bypass -File pedido_jfz.ps1");
+  }
   function renderCartPage() {
     var box = $("#jfz-carrito"); if (!box) return;
     if (!user) {
@@ -358,10 +411,13 @@
       (svcs().length ? '<div class="jfz-line"><span>Servicios</span><span>' + money(t.sv) + (t.conv ? " + a convenir" : "") + '</span></div>' : "") +
       '<div class="jfz-line jfz-total"><span>Total</span><span>' + money(t.total) + '</span></div>' +
       '<button type="button" class="btn-get-started w-100" id="jfz-send"><i class="bi bi-whatsapp"></i> Enviar pedido por WhatsApp</button>' +
+      (ph.length ? '<button type="button" class="jfz-btn-ps1 w-100" id="jfz-ps1"><i class="bi bi-terminal"></i> Descargar pedido (.ps1)</button>' +
+        '<p class="jfz-note">El .ps1 copia los <strong>originales</strong> (RAW/CR2/JPG) de estas fotos desde <code>' + esc(ORIGINALES) + '/</code> a una carpeta de entrega. Guárdalo en la carpeta del proyecto y ejecútalo con PowerShell.</p>' : "") +
       '<button type="button" class="jfz-link" id="jfz-clear">Vaciar carrito</button>' +
       '<p class="jfz-note">El pago y la entrega se acuerdan por WhatsApp. Cuantas más fotos, menor el precio por foto.</p></div></div></div>';
     $$(".jfz-rm", box).forEach(function (b) { b.addEventListener("click", function () { remove(b.getAttribute("data-f")); }); });
     $("#jfz-send").addEventListener("click", sendWhatsApp);
+    var pb = $("#jfz-ps1"); if (pb) pb.addEventListener("click", downloadPedidoPs1);
     $("#jfz-clear").addEventListener("click", function () { if (confirm("¿Vaciar el carrito?")) clearCart(); });
   }
 

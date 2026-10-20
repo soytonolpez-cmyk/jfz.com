@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es-419">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Herramientas | JuanetoFZ</title>
+  <meta name="description" content="Botones consolidados de las herramientas locales del sitio.">
+
+  <!-- Íconos del sitio -->
+  <link href="../assets/img/favicon.png" rel="icon">
+  <link href="../assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- CSS de librerías -->
+  <link href="../assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="../assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="../assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="../assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- CSS principal y personalización JuanetoFZ -->
+  <link href="../assets/css/main.css" rel="stylesheet">
+  <link href="../assets/css/jfz.css" rel="stylesheet">
+</head>
+
+<body data-page="herramientas">
+
+  <!-- El menú superior se genera en ../assets/js/jfz.js -->
+  <header id="header" class="header d-flex align-items-center sticky-top"></header>
+
+  <main class="main">
+
+    <!-- Título de la página -->
+    <div class="page-title" data-aos="fade">
+      <div class="heading">
+        <div class="container">
+          <div class="row d-flex justify-content-center text-center">
+            <div class="col-lg-8">
+              <h1>Herramientas</h1>
+              <p class="mb-0">Todos los botones de mi flujo local, consolidados en un solo lugar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <nav class="breadcrumbs">
+        <div class="container">
+          <ol>
+            <li><a href="../index.html">Inicio</a></li>
+            <li class="current">Herramientas</li>
+          </ol>
+        </div>
+      </nav>
+    </div>
+
+    <section id="herramientas" class="gallery section">
+      <div class="container" data-aos="fade-up">
+        <div class="jfz-panel">
+          <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
+          <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
+            <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.</p>
+          <div class="jfz-herr-botones">
+            <a class="btn-get-started" href="preparar_y_actualizar.bat" download><i class="bi bi-play-circle"></i> Ejecutar todo (convertir + actualizar)</a>
+          </div>
+          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
+
+          <h2 class="jfz-sub">Las piezas, por separado</h2>
+          <div class="row gy-4 mt-1">
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-camera-reels"></i>
+                <h3>Convertir a WebP</h3>
+                <p>RAW / CR2 / JPG &rarr; WebP con marca de agua y fecha EXIF (<code>preparar_fotos.py</code>).</p>
+                <a class="jfz-svc-add" href="preparar_fotos.py" download><i class="bi bi-download"></i> Descargar script</a>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-collection"></i>
+                <h3>Actualizar galería</h3>
+                <p>Regenera <code>assets/js/fotos.js</code> con fechas, etiquetas y trimestres (<code>actualizar_galeria.py</code>).</p>
+                <a class="jfz-svc-add" href="actualizar_galeria.py" download><i class="bi bi-download"></i> Descargar script</a>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-search"></i>
+                <h3>Buscar fotos</h3>
+                <p>El buscador con filtros del sitio: #moto / #casco / #caras, fechas, trimestres y orden.</p>
+                <a class="jfz-svc-add" href="../gallery.html#buscar"><i class="bi bi-arrow-right-circle"></i> Abrir buscador</a>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-box-arrow-right"></i>
+                <h3>Migrar Legado</h3>
+                <p>Pasa las fotos de <code>fotos/Legado</code> a <code>por-procesar/legado</code> para jubilar la carpeta (<code>migrar_legado.py</code>).</p>
+                <a class="jfz-svc-add" href="migrar_legado.py" download><i class="bi bi-download"></i> Descargar script</a>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-bag-check"></i>
+                <h3>Pedido + originales</h3>
+                <p>El botón «Descargar pedido (.ps1)» del carrito genera un script de PowerShell que copia los <strong>originales</strong> (RAW/CR2/JPG) del pedido desde <code>por-procesar/</code> a una carpeta de entrega. Aquí tienes también el modelo manual: pásale los nombres como argumentos.</p>
+                <a class="jfz-svc-add" href="../carrito.html"><i class="bi bi-cart3"></i> Ir al carrito</a>
+                <a class="jfz-svc-add" href="pedido.ps1" download><i class="bi bi-download"></i> Descargar pedido.ps1</a>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <div class="jfz-serv">
+                <i class="bi bi-tags"></i>
+                <h3>Listas de datos</h3>
+                <p>Los archivos <code>trimestres.txt</code>, <code>fechas.txt</code> y <code>etiquetas.txt</code> están en la carpeta <code>fotos/</code>. Sus formatos, abajo.</p>
+                <a class="jfz-svc-add" href="#listas"><i class="bi bi-journal-text"></i> Ver formatos</a>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="jfz-sub" id="listas">Formatos de las listas (carpeta fotos/)</h2>
+          <div class="jfz-panel jfz-herr-notas">
+            <p><strong>trimestres.txt</strong> — una línea por sección: <code>t4 | 4to Trimestre 2026</code></p>
+            <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
+            <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
+            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Ejecutar todo».</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- El pie de página se genera en ../assets/js/jfz.js -->
+  <footer id="footer" class="footer"></footer>
+
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <!-- JS de librerías -->
+  <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="../assets/vendor/aos/aos.js"></script>
+  <script src="../assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="../assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
+  <script src="../assets/js/config.js"></script>
+  <script src="../assets/js/servicios.js"></script>
+  <script src="../assets/js/fotos.js"></script>
+  <script src="../assets/js/jfz.js"></script>
+  <script src="../assets/js/main.js"></script>
+
+</body>
+
+</html>
