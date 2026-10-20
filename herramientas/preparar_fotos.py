@@ -41,20 +41,145 @@ EXT_RAW = {".cr2", ".cr3", ".nef", ".arw", ".raf", ".dng", ".rw2", ".orf", ".pef
 Image.MAX_IMAGE_PIXELS = None
 
 
-def revelar_raw(origen, destino_jpg):
-    """RAW (CR2/NEF/ARW...) -> JPG temporal. Devuelve la fecha 'AAAA-MM-DD' del RAW o None."""
-    import io
-    with rawpy.imread(str(origen)) as r:
-        jpg = r.postprocess(use_auto_wb=True)          # revelado basico de LibRaw
+def _normalizar_fecha(txt):
+    """Pasa 'AAAA:MM:DD HH:MM:SS' o 'AAAA-MM-DD...' a 'AAAA-MM-DD' (o None si no es valida)."""
+    f = str(txt or "").strip()[:10].replace("/", "-").replace(":", "-")
+    if len(f) == 10 and f[4] == "-" and f[7] == "-":
+        return f
+    return None
+
+
+def _fecha_cr2_muy_grande(origen):
+    """Plan B para CR2 que PIL no puede abrir (mas de 65535 px por lado): lee la fecha del EXIF crudo.
+
+    Recorre las cadenas de IFD/TIFF (incluidas sub-IFDs, como la IFD Exif donde Canon/Nikon/Sony
+    guardan DateTimeOriginal) buscando la fecha de toma. Solo se leen cadenas coherentes: si una
+    entrada parece corrupta se ignora ese nivel sin perder lo ya encontrado.
+    """
     try:
-        meta = r.other
-        fecha = str(getattr(meta, "capture_time", "") or "").strip()[:10].replace("/", "-")
+        datos = origen.read_bytes()
+        if len(datos) < 16:
+            return None
+        endian = "<" if datos[6:8] == b"II" else ">"
+        u16 = lambda b, o: int.from_bytes(b[o:o + 2], endian)
+        u32 = lambda b, o: int.from_bytes(b[o:o + 4], endian)
+
+        def leer_ifd(bloque, base):
+            """Devuelve (dict tag->valor, next_offset) o None si la cadena parece invalida."""
+            try:
+                n = u16(bloque, 0)
+                if n > 600 or len(bloque) < 2 + 12 * n:
+                    return None
+                salida = {}
+                for i in range(n):
+                    e = 2 + 12 * i
+                    tag, typ, cnt = u16(bloque, e), u16(bloque, e + 2), u32(bloque, e + 4)
+                    if typ == 2:                                   # ASCII
+                        tam = max(cnt, 1)
+                        if tam <= 4:
+                            txt = bloque[e + 8:e + 8 + tam]
+                        elif 4 + tam <= len(bloque):               # puntero a zona de datos
+                            off = u32(bloque, e + 8)
+                            if not (off < base or off - base + tam <= len(bloque)):
+                                continue
+                            txt = bloque[off - base:off - base + tam]
+                        else:
+                            continue
+                        v = txt.split(b"\x00")[0].decode("ascii", "ignore").strip()
+                        if v:
+                            salida[tag] = v
+                    elif tag in (0x8769, 0xA005):                  # punteros ExifIFD / InteropIFD
+                        salida[tag] = u32(bloque, e + 8)
+                nxt = u32(bloque, 2 + 12 * n) if len(bloque) >= 2 + 12 * n + 4 else 0
+                return salida, nxt
+            except Exception:
+                return None
+
+        cola = [int.from_bytes(datos[8:12], endian)]   # cabecera TIFF -> IFD0 (offset 8 en CR2)
+        vistos = set()
+        while cola:
+            off = cola.pop(0)
+            if off in vistos or not (0 < off < len(datos) - 2):
+                continue
+            vistos.add(off)
+            r = leer_ifd(datos[off:], off)
+            if not r:
+                continue
+            tags, nxt = r
+            for tag in (36867, 36868, 306):             # DateTimeOriginal / Digitized / DateTime
+                f = _normalizar_fecha(tags.get(tag))
+                if f:
+                    return f
+            for tag in (0x8769, 0xA005):
+                if isinstance(tags.get(tag), int):
+                    cola.append(tags[tag])
+            if nxt:
+                cola.append(nxt)
     except Exception:
-        fecha = ""
-    if not (len(fecha) == 10 and fecha[4] == "-" and fecha[7] == "-"):
-        fecha = ""
-    Image.open(io.BytesIO(jpg)).save(destino_jpg, "JPEG", quality=95)
-    return fecha or None
+        pass
+    return None
+
+
+def _guardar_jpg(im, destino_jpg, exif=None):
+    """Guarda RGB como JPEG calidad 95, adjuntando el EXIF si el formato lo permite."""
+    extra = {"exif": exif} if exif else {}
+    try:
+        im.save(destino_jpg, "JPEG", quality=95, **extra)
+    except (ValueError, TypeError):             # algunos EXIF no son validos para JPEG
+        im.save(destino_jpg, "JPEG", quality=95)
+
+
+def revelar_raw(origen, destino_jpg):
+    """RAW (CR2/CR3/NEF/ARW/DNG...) -> JPG temporal. Devuelve la fecha 'AAAA-MM-DD' del RAW o None.
+
+    Ruta principal: rawpy/LibRaw (revelado completo). Si falta rawpy o el archivo puntual
+    da error, se intenta una via alternativa con Pillow (lee el JPG embebido del RAW),
+    y para CR2 modernos muy grandes existe un lector directo del EXIF para la fecha.
+    """
+    import io
+    fecha = None
+    jpg = None
+    if rawpy is not None:
+        try:
+            with rawpy.imread(str(origen)) as r:
+                jpg = r.postprocess(use_auto_wb=True)          # revelado basico de LibRaw
+                try:
+                    fecha = _normalizar_fecha(getattr(r.other, "capture_time", ""))
+                except Exception:
+                    fecha = None
+        except Exception as e:
+            print(f"    AVISO: rawpy no pudo revelar {origen.name} ({e}); pruebo la via alternativa.")
+    if jpg is None:                                           # via alternativa: Pillow
+        try:
+            with Image.open(origen) as im:
+                exif = im.getexif()
+                try:                                # DateTimeOriginal vive en la IFD Exif (0x8769)
+                    sub = exif.get_ifd(0x8769)
+                    for tag in (36867, 36868, 306):
+                        if sub.get(tag):
+                            fecha = _normalizar_fecha(sub[tag]); break
+                except Exception:
+                    fecha = None
+                if not fecha:
+                    for tag in (36867, 36868, 306):
+                        if exif.get(tag):
+                            fecha = _normalizar_fecha(exif[tag]); break
+                if im.mode in ("RGBA", "LA", "P"):
+                    im = im.convert("RGB")
+                buf = io.BytesIO()
+                im.save(buf, "JPEG", quality=95)
+                jpg = buf.getvalue()
+        except Exception as e:
+            print(f"    AVISO: Pillow tampoco abrio {origen.name} ({type(e).__name__}: {e}).")
+            if origen.suffix.lower() == ".cr2":               # plan B solo para la fecha
+                fecha = _fecha_cr2_muy_grande(origen)
+            return None
+    if jpg is None:
+        if rawpy is None:
+            print(f"    AVISO: {origen.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
+        return None
+    _guardar_jpg(Image.open(io.BytesIO(jpg)), destino_jpg)
+    return fecha
 
 
 def poner_marca(im, marca):
@@ -129,6 +254,7 @@ def main():
         destino_dir.mkdir(exist_ok=True)
         nuevas = 0
         temporales = []
+        fallan_raw = []
         for f in archivos:
             destino = destino_dir / (f.stem + ".webp")
             origen = f
@@ -142,6 +268,9 @@ def main():
                     tmp = RAIZ / "herramientas" / "__tmp__" / f"{carpeta.name}_{f.stem}.jpg"
                     tmp.parent.mkdir(exist_ok=True)
                     fecha_raw = revelar_raw(f, tmp)
+                    if not tmp.exists():
+                        fallan_raw.append(f.name)          # no se pudo revelar: queda para la proxima
+                        continue
                     origen = tmp
                     temporales.append(tmp)
                     if fecha_raw:
@@ -157,7 +286,12 @@ def main():
             except OSError:
                 pass
         total += nuevas
-        print(f"{carpeta.name}: {nuevas} fotos nuevas ({len(archivos) - nuevas} ya existian).")
+        skip = len(archivos) - nuevas - len(fallan_raw)
+        print(f"{carpeta.name}: {nuevas} fotos nuevas ({skip} ya existian).")
+        if fallan_raw:
+            print(f"  ATENCION: no se pudieron revelar {len(fallan_raw)} RAW: {', '.join(fallan_raw[:6])}")
+            print("               Instala/actualiza la libreria (py -m pip install -U rawpy) o exporta esos")
+            print("               archivos a JPG desde tu editor y vuelve a ejecutar (no se pierden).")
         if carpeta.name not in [l.split("|")[0].strip() for l in registradas.splitlines() if "|" in l]:
             print(f"  AVISO: agrega esta linea en fotos/trimestres.txt para que se vea en el sitio:")
             print(f"         {carpeta.name} | Titulo que quieras (ej. 4to Trimestre 2026)")
