@@ -602,17 +602,6 @@
     if (ph.length) L.push("", "COMANDO POWERSHELL (copiar y pegar tal cual en una consola):", psCmd());
     return L.join("\n");
   }
-  function downloadPedidoPs1() {
-    if (!photos().length) { toast("El carrito no tiene fotos todavía"); return; }
-    var txt = psCmd().replace(/\n/g, "\r\n") + "\r\n";
-    var blob = new Blob(["\uFEFF" + txt], { type: "text/plain;charset=utf-8" }); // BOM: PowerShell lee bien los acentos
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "pedido_jfz.ps1";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-    toast("pedido_jfz.ps1 descargado — guárdalo en la carpeta de las originales y ejecútalo con: powershell -ExecutionPolicy Bypass -File pedido_jfz.ps1");
-  }
   function renderCartPage() {
     var box = $("#jfz-carrito"); if (!box) return;
     if (!user) {
@@ -638,13 +627,11 @@
       (svcs().length ? '<div class="jfz-line"><span>Servicios</span><span>' + money(t.sv) + (t.conv ? " + a convenir" : "") + '</span></div>' : "") +
       '<div class="jfz-line jfz-total"><span>Total</span><span>' + money(t.total) + '</span></div>' +
       '<button type="button" class="btn-get-started w-100" id="jfz-send"><i class="bi bi-whatsapp"></i> Enviar pedido por WhatsApp</button>' +
-      (ph.length ? '<button type="button" class="jfz-btn-ps1 w-100" id="jfz-ps1"><i class="bi bi-terminal"></i> Descargar pedido (.ps1)</button>' +
-        '<p class="jfz-note">El comando <strong>PowerShell</strong> con los nombres exactos de estas fotos viaja dentro del mensaje de WhatsApp: solo cópialo y pégalo en una consola. El botón .ps1 es el respaldo, por si el pedido es muy largo y el comando no cabe en el chat.</p>' : "") +
+      (ph.length ? '<p class="jfz-note">El comando <strong>PowerShell</strong> con los nombres exactos de estas fotos viaja dentro del mensaje de WhatsApp: solo cópialo y pégalo en una consola.</p>' : "") +
       '<button type="button" class="jfz-link" id="jfz-clear">Vaciar carrito</button>' +
       '<p class="jfz-note">El pago y la entrega se acuerdan por WhatsApp. Cuantas más fotos, menor el precio por foto.</p></div></div></div>';
     $$(".jfz-rm", box).forEach(function (b) { b.addEventListener("click", function () { remove(b.getAttribute("data-f")); }); });
     $("#jfz-send").addEventListener("click", sendWhatsApp);
-    var pb = $("#jfz-ps1"); if (pb) pb.addEventListener("click", downloadPedidoPs1);
     $("#jfz-clear").addEventListener("click", function () { if (confirm("¿Vaciar el carrito?")) clearCart(); });
   }
 
