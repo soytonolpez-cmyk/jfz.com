@@ -4,3 +4,4 @@
 # agrega su línea aquí y ejecuta herramientas/"actualizacion_definitiva.bat"
 # JUBILADO (antes en la galería): Legado | Legado
 # JUBILADO (antes en la galería): t9test | Prueba Trimestre
+galeria | Galería
