@@ -49,7 +49,7 @@
       '<li><a href="index.html#sobre-mi">Sobre mí</a></li>' +
       '<li class="dropdown"><a href="gallery.html"' + act("galeria") + '><span>Galería</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a><ul>' + sub + "</ul></li>" +
       '<li><a href="services.html"' + act("servicios") + ">Servicios</a></li>" +
-      '<li><a href="herramientas/index.html"' + act("herramientas") + ">Herramientas</a></li>" +
+      /* Enlace «Herramientas» del menu: OCULTO a pedido (pagina inutil) */
       '<li><a href="contact.html"' + act("contacto") + ">Contacto</a></li>" +
       '</ul><i class="mobile-nav-toggle d-xl-none bi bi-list"></i></nav>' +
       '<div class="jfz-actions">' +   /* (lupa de busqueda eliminada a pedido: ya no se muestra en el header) */
@@ -62,7 +62,7 @@
         .map(function (x) { return '<a href="' + C[x[0]] + '" target="_blank" rel="noopener" aria-label="' + x[0] + '"><i class="bi ' + x[1] + '"></i></a>'; }).join("");
       f.innerHTML = '<div class="container"><div class="copyright text-center"><p>© <span>Copyright</span> <strong class="px-1 sitename">JuanetoFZ</strong> <span>Todos los derechos reservados</span></p></div>' +
         '<div class="social-links d-flex justify-content-center">' + soc + "</div>" +
-        '<div class="jfz-pie-herr"><a href="herramientas/index.html"><i class="bi bi-tool"></i> Herramientas del fotógrafo</a></div>' +
+        /* Pie: enlace a Herramientas OCULTO a pedido */
         '<div class="credits">Diseñado por <a href="https://bootstrapmade.com/">BootstrapMade</a></div></div>';
     }
     $$("[data-cfg]").forEach(function (el) { var k = el.getAttribute("data-cfg"); if (C[k]) el.textContent = C[k]; });
