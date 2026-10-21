@@ -3,7 +3,7 @@
 Para cuando quieras jubilarya la carpeta Legado (los originales quedan solo en tu PC):
   py herramientas/migrar_legado.py          -> copia las .webp a por-procesar/legado/
 Luego: borra la carpeta fotos/Legado, borra la linea 'Legado | ...' de fotos/trimestres.txt
-y ejecuta preparar_y_actualizar.bat. Las fechas ya estan en fotos/fechas.txt si las tenia.
+y ejecuta "actualizar todo.bat". Las fechas ya estan en fotos/fechas.txt si las tenia.
 """
 import shutil
 from pathlib import Path
@@ -26,4 +26,4 @@ else:
                 shutil.copy2(f, destino); n += 1
     print(f"Listo: {n} fotos copiadas a por-procesar/legado/.")
     print("Ahora puedes borrar la carpeta fotos/Legado y su linea en fotos/trimestres.txt,")
-    print("y ejecutar herramientas/preparar_y_actualizar.bat.")
+    print("y ejecutar herramientas/\"actualizar todo.bat\".")

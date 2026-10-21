@@ -16,7 +16,7 @@ Qué hace (cada ajuste es idempotente: si ya está aplicado, no toca nada):
   7. preparar_y_actualizar.bat: ejecuta este script primero, para que el sitio quede
      siempre consolidado después de cada actualización.
 
-Uso manual (normalmente basta con preparar_y_actualizar.bat):
+Uso manual (normalmente basta con "actualizar todo.bat"):
     py herramientas/consolidar_sitio.py
 Si algún día editas esas partes a mano y aparece un aviso "no encontré ...", avísale a Claude.
 """
@@ -90,7 +90,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
           <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
             <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.</p>
           <div class="jfz-herr-botones">
-            <a class="btn-get-started" href="preparar_y_actualizar.bat" download><i class="bi bi-play-circle"></i> Ejecutar todo (convertir + actualizar)</a>
+            <a class="btn-get-started" href="actualizar%20todo.bat" download><i class="bi bi-play-circle"></i> Actualizar todo (convertir + galería)</a>
           </div>
           <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
 
@@ -152,7 +152,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
             <p><strong>trimestres.txt</strong> — una línea por sección: <code>t4 | 4to Trimestre 2026</code></p>
             <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
             <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
-            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Ejecutar todo».</p>
+            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Actualizar todo».</p>
           </div>
         </div>
       </div>
@@ -276,14 +276,15 @@ def main():
         css.write_text(scss.rstrip() + "\n" + extra_css, encoding="utf-8")
         hechos.append("jfz.css: estilos de la lupa y del panel de herramientas")
 
-    # --- 8. preparar_y_actualizar.bat: correr la consolidación primero ---
+    # --- 8. preparar_y_actualizar.bat: correr la consolidación primero (legado; el botón nuevo es "actualizar todo.bat") ---
     bat = RAIZ / "herramientas" / "preparar_y_actualizar.bat"
-    sbat = bat.read_text(encoding="utf-8")
-    if "consolidar_sitio.py" not in sbat:
-        sbat = sbat.replace("echo === 1/3 Parche del sitio ===",
-                            "echo === 0/3 Consolidando botones del sitio ===\npy herramientas\\consolidar_sitio.py\necho.\necho === 1/3 Parche del sitio ===")
-        bat.write_text(sbat, encoding="utf-8")
-        hechos.append("preparar_y_actualizar.bat: ahora consolida los botones en cada ejecución")
+    if bat.exists():
+        sbat = bat.read_text(encoding="utf-8")
+        if "consolidar_sitio.py" not in sbat:
+            sbat = sbat.replace("echo === 1/3 Parche del sitio ===",
+                                "echo === 0/3 Consolidando botones del sitio ===\npy herramientas\\consolidar_sitio.py\necho.\necho === 1/3 Parche del sitio ===")
+            bat.write_text(sbat, encoding="utf-8")
+            hechos.append("preparar_y_actualizar.bat: ahora consolida los botones en cada ejecución")
 
     if hechos:
         for h in hechos:

@@ -1,6 +1,6 @@
 """Convierte tus fotos terminadas a WebP (liviano), con marca de agua, y las deja en fotos/<carpeta>/.
 
-Como se usa (lo normal es hacerlo con el archivo preparar_y_actualizar.bat, doble clic):
+Como se usa (lo normal es hacerlo con el archivo "actualizar todo.bat", doble clic):
   1. Mete tus fotos DENTRO de "por-procesar", en una carpeta por trimestre.
      Ejemplos:  por-procesar/t4/IMG_6001.jpg   o   por-procesar/t4/IMG_6001.CR2
      Se aceptan JPG/PNG/TIFF y RAW de camara profesional (.CR2 .CR3 .NEF .ARW .RAF .DNG .RW2 .ORF .PEF).

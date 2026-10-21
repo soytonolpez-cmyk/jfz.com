@@ -241,6 +241,7 @@
     pintarGaleria();
     tabs.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) location.hash = b.getAttribute("data-id"); });
     window.addEventListener("hashchange", showTab);
+    if (location.hash === "#buscar") { setTimeout(function () { var bq = $("#jfz-q"); if (bq) { try { bq.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }
     showTab(); syncCart();
   }
   /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
