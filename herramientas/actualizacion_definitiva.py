@@ -9,14 +9,11 @@ Qué hace al ejecutarla (en este orden):
   A) ORDENA la carpeta fotos/: cualquier foto suelta (o dentro de subcarpetas
      como t4/) se mueve a la carpeta general fotos/galeria/ — la unica seccion
      que existe ahora en el sitio. Idempotente: si ya esta todo ordenado, no toca nada.
-  A2) JUBILA "Legado" y "Prueba Trimestre" de la galeria:
-       - mueve TODAS las fotos que esten todavia en las carpetas jubiladas
-         (fotos/Legado* y fotos/*prueba*/*trimestre*) hacia fotos/galeria/.
-       - comenta las lineas de esas secciones en fotos/trimestres.txt,
-         fotos/fechas.txt y fotos/etiquetas.txt (los datos quedan guardados;
-         se pueden devolver con el argumento --revertir).
-       - si quedan las fotos de prueba IMG_9001 / IMG_9002 sin usar, quita
-         sus lineas de fotos/etiquetas.txt (las demas etiquetas se conservan).
+  A2) QUITADO a pedido: antes jubilaba "Legado" y "Prueba Trimestre" (movia sus
+       fotos a fotos/galeria/ y comentaba sus lineas en los .txt). Ahora el boton
+       NO toca nada de eso; esas categorias quedan intactas. El codigo sigue
+       disponible solo para reactivarlo a mano con el argumento --jubilar-legacy
+       (--revertir sigue funcionando para devolver secciones ya jubiladas).
   B) Aplica los parches idempotentes del sitio (parche_webp + parche_galeria +
      consolidar_sitio): .webp en el carrito, mosaico mejorado conectado,
      menu/pie/enlaces de Herramientas y estilos.
@@ -24,11 +21,14 @@ Qué hace al ejecutarla (en este orden):
      ofrece "Actualizacion definitiva.bat" como boton unico).
   D) Crea herramientas/"actualizacion_definitiva.bat": el nuevo boton unico
      (doble clic) que corre este script y luego convierte fotos nuevas
-     (preparar_fotos) y actualiza la galeria (actualizar_galeria), o sea el
-     flujo completo de "actualizar todo.bat" mas la jubilacion de Legado.
+     (preparar_fotos) y actualiza la galeria (actualizar_galeria). Ya no
+     jubila Legado: esa parte del flujo fue quitada a pedido.
 
 Uso (consola dentro de la carpeta del proyecto):
     py herramientas/actualizacion_definitiva.py             -> aplica todo
+        (Legado y Prueba Trimestre quedan SIN tocar)
+    py herramientas/actualizacion_definitiva.py --jubilar-legacy -> reactiva a
+        mano la jubilacion de esas secciones (movia sus fotos a galeria)
     py herramientas/actualizacion_definitiva.py --revertir  -> devuelve Legado y
         Prueba Trimestre a la galeria (descomenta las lineas jubiladas)
 
@@ -501,7 +501,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
               <div class="jfz-serv">
                 <i class="bi bi-gear-wide-connected"></i>
                 <h3>Actualización definitiva</h3>
-                <p>Script único que mueve las fotos de Legado y Prueba Trimestre a <code>fotos/galeria/</code>, jubila esas secciones, aplica los parches del sitio, consolida los botones y regenera la galería (<code>actualizacion_definitiva.py</code>). Con <code>--revertir</code> devuelve esas secciones.</p>
+                <p>Script único que ordena las fotos sueltas en <code>fotos/galeria/</code>, aplica los parches del sitio, consolida los botones y regenera la galería (<code>actualizacion_definitiva.py</code>). Las categorías Legado y Prueba Trimestre quedan sin tocar (la jubilación solo se reactiva a mano con <code>--jubilar-legacy</code>).</p>
                 <a class="jfz-svc-add" href="actualizacion_definitiva.py" download><i class="bi bi-download"></i> Descargar script</a>
               </div>
             </div>
@@ -682,19 +682,18 @@ rem ============================================================
 rem  "actualizacion_definitiva.bat" - EL BOTON UNICO de este sitio.
 rem  Doble clic y hace TODO el flujo automatico, en orden:
 rem    1) actualizacion_definitiva.py  (mueve las fotos sueltas que queden
-rem       dentro de fotos\\ en la carpeta general fotos\\galeria, jubila las
-rem       secciones Legado/Prueba Trimestre, aplica los parches del sitio
-rem       y consolida los botones)
+rem       dentro de fotos\\ en la carpeta general fotos\\galeria, aplica los
+rem       parches del sitio y consolida los botones)
 rem    2) preparar_fotos.py            (fotos de por-procesar\\ -> WebP con
 rem       marca de agua en fotos\\galeria; usa herramientas\\marca_agua.png)
 rem    3) actualizar_galeria.py        (regenera assets/js/fotos.js)
 rem  Despues: GitHub Desktop -> Commit to main -> Push origin.
 rem  Tambien sirve para ejecutar solo UNA pieza intermedia:
-rem    "actualizacion_definitiva.bat" 1  -> solo jubilacion + parches
+rem    "actualizacion_definitiva.bat" 1  -> solo parches
 rem    "actualizacion_definitiva.bat" 2  -> hasta convertir fotos
 rem    "actualizacion_definitiva.bat" 3  -> todo el flujo (por defecto)
-rem  Para DEVOLVER Legado/Prueba Trimestre a la galeria:
-rem    py herramientas\\actualizacion_definitiva.py --revertir
+rem  NOTA: se quito del flujo el codigo que jubilaba/borraba las categorias
+rem  legado y prueba trimestre (ya no se toca nada de eso).
 rem ============================================================
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
@@ -711,7 +710,7 @@ if not "%~1"=="" (
   echo %~1| findstr /r "^[1-3]$" >nul && set PASO_FINAL=%~1
 )
 
-echo === 1^) Actualizacion definitiva: ordenar fotos + jubilar Legado/Prueba + parches ===
+echo === 1^) Actualizacion definitiva: ordenar fotos + parches ===
 %PY% herramientas\\actualizacion_definitiva.py
 if errorlevel 1 (echo Hubo un problema en la actualizacion. Avsale a Claude. & goto fin)
 if %PASO_FINAL% LSS 2 goto fin
@@ -780,6 +779,10 @@ def limpiar_viejos(hechos):
             continue
         if stem in {"prepararfotos", "actualizargaleria", "actualizaciondefinitiva", "moverfotosagaleria", "pedido", "pedidops"}:
             continue
+        # Proteccion a pedido: NUNCA borrar nada relacionado con las categorias
+        # legado / prueba trimestre (jubilar_legado, migrar_legado, etc.).
+        if "legado" in stem or ("prueba" in stem and "trimestre" in stem) or "t9test" in stem:
+            continue
         if stem == "marcaagua" and ruta.suffix.lower() == ".png":
             continue
         for patron in A_BORRAR:
@@ -823,9 +826,17 @@ def main():
         print("AVISO: " + a)
     if not mov and not av:
         print("fotos/ ya estaba ordenada: todas las fotos viven en fotos/galeria/.")
-    print("\n--- A2) Jubilando secciones antiguas (fotos -> fotos/galeria) ---")
-    mover_fotos_jubiladas()
-    jubilar()
+    # QUITADO a pedido: antes aca estaba el codigo que jubilaba/borraba las
+    # categorias legado y prueba trimestre (mover_fotos_jubiladas() + jubilar()).
+    # Ya no forma parte del boton "actualizacion_definitiva.bat": nada de eso se
+    # mueve, comenta ni borra al ejecutarlo. (Solo puede reactivarse a mano con:
+    #   py herramientas/actualizacion_definitiva.py --jubilar-legacy)
+    if "--jubilar-legacy" in sys.argv:
+        print("\n--- A2) Jubilando secciones antiguas (fotos -> fotos/galeria) ---")
+        mover_fotos_jubiladas()
+        jubilar()
+    else:
+        print("\n--- A2) Legado / Prueba Trimestre: SIN TOCAR (codigo de jubilacion quitado del boton) ---")
 
     # B) parches del sitio (webp + galería plus + consolidación)
     print("\n--- B) Parches y consolidación del sitio ---")
@@ -859,15 +870,19 @@ def main():
                 ruta_boton.unlink()
                 print(f"+ Eliminado el boton heredado {ruta_boton.name} (ahora existe actualizacion_definitiva.bat)")
 
-    # E) regenerar la galeria con las secciones ya jubiladas
+    # E) regenerar la galeria (Legado/Prueba Trimestre quedan intactas por defecto)
     print("\n--- D) Regenerando assets/js/fotos.js ---")
     rc = regenerar_galeria()
 
     print()
-    print('Listo: "Legado" y "Prueba Trimestre" dejaron de existir en la galería.')
-    print("Las fotos que quedaban en esas carpetas fueron movidas a fotos/galeria/.")
-    print("Si quieres, borra con el explorador de Windows las carpetas jubiladas ya vacías")
-    print("(fotos/Legado y fotos/t9test): no afectan al sitio.")
+    if "--jubilar-legacy" in sys.argv:
+        print('Listo: "Legado" y "Prueba Trimestre" dejaron de existir en la galería.')
+        print("Las fotos que quedaban en esas carpetas fueron movidas a fotos/galeria/.")
+        print("Si quieres, borra con el explorador de Windows las carpetas jubiladas ya vacías")
+        print("(fotos/Legado y fotos/t9test): no afectan al sitio.")
+    else:
+        print('Listo: las categorías "Legado" y "Prueba Trimestre" quedaron SIN tocar.')
+        print("(la jubilación solo se ejecuta a mano con --jubilar-legacy).")
     print('Para el día a día usa herramientas/"actualizacion_definitiva.bat" (doble clic).')
     return rc
 
