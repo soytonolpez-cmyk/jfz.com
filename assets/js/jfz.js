@@ -42,7 +42,7 @@
       '<a href="index.html" class="logo d-flex align-items-center me-auto me-xl-0"><img src="assets/img/logo.png" alt="Logo JFZ"><h1 class="sitename">JuanetoFZ</h1></a>' +
       '<nav id="navmenu" class="navmenu"><ul>' +
       '<li><a href="index.html"' + act("inicio") + ">Inicio</a></li>" +
-      '<li><a href="about.html"' + act("sobre-mi") + ">Sobre mí</a></li>" +
+      '<li><a href="index.html#sobre-mi">Sobre mí</a></li>' +
       '<li class="dropdown"><a href="gallery.html"' + act("galeria") + '><span>Galería</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a><ul>' + sub + "</ul></li>" +
       '<li><a href="services.html"' + act("servicios") + ">Servicios</a></li>" +
       '<li><a href="herramientas/index.html"' + act("herramientas") + ">Herramientas</a></li>" +

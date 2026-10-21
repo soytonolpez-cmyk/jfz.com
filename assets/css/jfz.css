@@ -160,6 +160,9 @@ html [data-aos="fade-up"]:not(.aos-animate) { transform: translate3d(0, 14px, 0)
 .jfz-sobre-lead { font-size: 19px; color: var(--accent-hover); }
 .jfz-sobre p { color: rgba(255,255,255,.78); font-size: 16px; line-height: 1.75; }
 .jfz-sobre-botones { margin-top: 22px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.jfz-sobre-datos { list-style: none; padding: 0; margin: 18px 0 0; }
+.jfz-sobre-datos li { color: rgba(255,255,255,.78); font-size: 15px; padding: 3px 0; }
+.jfz-sobre-datos i { color: var(--accent-color); font-size: 13px; margin-right: 6px; }
 
 /* ---- botones consolidados (header + página de herramientas) ---- */
 .jfz-buscabox { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); color: #fff; text-decoration: none; transition: .2s; }
