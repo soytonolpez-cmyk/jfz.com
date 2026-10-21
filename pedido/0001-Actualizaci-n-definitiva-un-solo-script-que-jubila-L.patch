@@ -1,0 +1,1353 @@
+From 5de4bfce16331b169480bb126facde97aea5a597 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Wed, 21 Oct 2026 02:41:18 +0000
+Subject: [PATCH 1/2] =?UTF-8?q?Actualizaci=C3=B3n=20definitiva:=20un=20sol?=
+ =?UTF-8?q?o=20script=20que=20jubila=20Legado=20y=20Prueba=20Trimestre=20(?=
+ =?UTF-8?q?sin=20mover=20fotos),=20consolida=20las=20herramientas=20y=20el?=
+ =?UTF-8?q?imina=20los=20archivos=20viejos?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ fotos/etiquetas.txt                      |   2 +-
+ fotos/trimestres.txt                     |   2 +-
+ herramientas/actualizacion_definitiva.py | 566 +++++++++++++++++++++++
+ herramientas/actualizar todo.bat         |  58 ---
+ herramientas/consolidar_sitio.py         | 299 ------------
+ herramientas/index.html                  | 150 ------
+ herramientas/jubilar_legado.py           | 102 ----
+ herramientas/migrar_legado.py            |  29 --
+ herramientas/parche_galeria.py           |  20 -
+ herramientas/parche_webp.py              |  21 -
+ 10 files changed, 568 insertions(+), 681 deletions(-)
+ create mode 100644 herramientas/actualizacion_definitiva.py
+ delete mode 100644 herramientas/actualizar todo.bat
+ delete mode 100644 herramientas/consolidar_sitio.py
+ delete mode 100644 herramientas/index.html
+ delete mode 100644 herramientas/jubilar_legado.py
+ delete mode 100644 herramientas/migrar_legado.py
+ delete mode 100644 herramientas/parche_galeria.py
+ delete mode 100644 herramientas/parche_webp.py
+
+diff --git a/fotos/etiquetas.txt b/fotos/etiquetas.txt
+index 0079361..ca508f2 100644
+--- a/fotos/etiquetas.txt
++++ b/fotos/etiquetas.txt
+@@ -6,7 +6,7 @@
+ #
+ # El orden importa: la última regla que toque una foto manda (igual que en fechas.txt).
+ # Una foto puede tener varias etiquetas (moto,caras). Las etiquetas se ven tal cual en el sitio.
+-# Después de editar este archivo ejecuta herramientas/"actualizar todo.bat"
++# Después de editar este archivo ejecuta herramientas/"actualizacion_definitiva.bat"
+ #
+ # Ejemplos (quita el # del inicio para activarlos):
+ # IMG_1468 | moto
+diff --git a/fotos/trimestres.txt b/fotos/trimestres.txt
+index e812473..190c869 100644
+--- a/fotos/trimestres.txt
++++ b/fotos/trimestres.txt
+@@ -1,6 +1,6 @@
+ # Una línea por sección de la galería:   carpeta | Título que se ve en el sitio
+ # El orden de arriba hacia abajo es el orden en la galería.
+ # Para crear una nueva: crea la carpeta dentro de "fotos" (en minúsculas, sin espacios ni tildes),
+-# agrega su línea aquí y ejecuta herramientas/"actualizar todo.bat"
++# agrega su línea aquí y ejecuta herramientas/"actualizacion_definitiva.bat"
+ # JUBILADO (antes en la galería): Legado | Legado
+ t9test | Prueba Trimestre
+diff --git a/herramientas/actualizacion_definitiva.py b/herramientas/actualizacion_definitiva.py
+new file mode 100644
+index 0000000..d782c49
+--- /dev/null
++++ b/herramientas/actualizacion_definitiva.py
+@@ -0,0 +1,566 @@
++"""actualizacion_definitiva.py — LA ÚNICA HERRAMIENTA del sitio (borrador).
++
++Consolida en un solo archivo todo lo que antes estaba repartido en:
++    preparar_y_actualizar.bat, preparar_fotos.py, pedido.ps1 (parche webp),
++    parche_webp.py, parche_galeria.py, migrar_legado.py, marca_agua.png,
++    jubilar_legado.py, index.html y consolidar_sitio.py.
++
++Qué hace al ejecutarla (en este orden):
++  A) JUBILA "Legado" y "Prueba Trimestre" de la galeria, SIN mover ninguna foto:
++       - comenta las lineas de esas secciones en fotos/trimestres.txt,
++         fotos/fechas.txt y fotos/etiquetas.txt (los datos quedan guardados;
++         se pueden devolver con el argumento --revertir).
++       - si todavia existieran las fotos de prueba IMG_9001 / IMG_9002, quita
++         sus lineas de fotos/etiquetas.txt (las demas etiquetas se conservan).
++       - regenera assets/js/fotos.js: las dos secciones dejan de existir en el sitio.
++     NOTA: NO toca las carpetas de fotos (fotos/Legado, fotos/t9test ni sus webp);
++     eso lo haces tu localmente si queres: primero copia lo que te interesa a
++     por-procesar/legado/ (equivale al viejo migrar_legado.py) y despues borra
++     la carpeta fotos/Legado y fotos/t9test con el explorador de Windows.
++  B) Aplica los parches idempotentes del sitio (parche_webp + parche_galeria +
++     consolidar_sitio): .webp en el carrito, mosaico mejorado conectado,
++     menu/pie/enlaces de Herramientas y estilos.
++  C) Regenera herramientas/index.html (el panel de botones actualizado: ahora
++     ofrece "Actualizacion definitiva.bat" como boton unico).
++  D) Crea herramientas/"actualizacion_definitiva.bat": el nuevo boton unico
++     (doble clic) que corre este script y luego convierte fotos nuevas
++     (preparar_fotos) y actualiza la galeria (actualizar_galeria), o sea el
++     flujo completo de "actualizar todo.bat" mas la jubilacion de Legado.
++
++Uso (consola dentro de la carpeta del proyecto):
++    py herramientas/actualizacion_definitiva.py             -> aplica todo
++    py herramientas/actualizacion_definitiva.py --revertir  -> devuelve Legado y
++        Prueba Trimestre a la galeria (descomenta las lineas jubiladas)
++
++Las piezas que siguen viviendo aparte (por diseño):
++  - preparar_fotos.py  : convertido de fotos (necesita herramientas/marca_agua.png,
++                        tus originales y Pillow; no tiene sentido fusionarlo aqui).
++  - actualizar_galeria.py : generador de fotos.js (este script lo llama).
++  - pedido.ps1 : modelo manual del pedido; el boton «Descargar pedido (.ps1)»
++                 del carrito sigue generando su propio script.
++
++IMPORTANTE (migracion desde los archivos viejos): si todavia tenes en tu PC
++"preparar_y_actualizar.bat" o "actualizar todo.bat", borralos: esta herramienta
++crea "actualizacion_definitiva.bat", que es ahora el unico boton del flujo.
++"""
++import subprocess
++import sys
++from pathlib import Path
++
++RAIZ = Path(__file__).resolve().parent.parent
++HERR = RAIZ / "herramientas"
++FOTOS = RAIZ / "fotos"
++TRIM = RAIZ / "fotos" / "trimestres.txt"
++OTRAS = [RAIZ / "fotos" / "fechas.txt"]
++ETIQ = RAIZ / "fotos" / "etiquetas.txt"
++
++# Secciones que dejan de existir en la galeria (se comparan en minusculas)
++JUBILAR = ["legado", "t9test"]          # t9test = "Prueba Trimestre"
++# Fotos de prueba cuya etiqueta conviene quitar al jubilar la seccion
++FOTOS_PRUEBA = ["img_9001", "img_9002"]
++# Carpetas jubiladas donde pueden estar esas fotos de prueba
++CARPETAS_JUBILADAS = JUBILAR
++
++MARCA_AGUIO = """AVISO: no encontre herramientas/marca_agua.png. Preparar fotos
++avisa si falta; para convertir necesitas ahi tu logo PNG transparente."""
++
++
++# ---------------------------------------------------------------- jubilacion --
++def _es_de_seccion(linea, claves):
++    partes = [x.strip() for x in linea.split("|")]
++    return bool(partes) and partes[0].lower() in claves
++
++
++def jubilar():
++    """Comenta las lineas de las secciones jubiladas (no mueve ni borra fotos)."""
++    cambiados = []
++    claves = set(JUBILAR)
++
++    if TRIM.exists():
++        lineas = TRIM.read_text(encoding="utf-8").splitlines()
++        nueva = []
++        for ln in lineas:
++            if _es_de_seccion(ln.strip(), claves) and not ln.strip().startswith("#"):
++                nueva.append("# JUBILADO (antes en la galería): " + ln)
++            else:
++                nueva.append(ln)
++        if nueva != lineas:
++            TRIM.write_text("\n".join(nueva) + "\n", encoding="utf-8")
++            cambiados.append("trimestres.txt: Legado y Prueba Trimestre fuera de la galería")
++
++    for ruta in OTRAS:
++        if not ruta.exists():
++            continue
++        ls = ruta.read_text(encoding="utf-8").splitlines()
++        out, tocado = [], False
++        for ln in ls:
++            s = ln.strip()
++            partes = [x.strip() for x in s.split("|")]
++            if s.startswith("#"):
++                out.append(ln)
++                continue
++            if len(partes) == 3 and _es_de_seccion(s, claves):
++                out.append("# JUBILADO: " + ln)
++                tocado = True
++            else:
++                out.append(ln)
++        if tocado:
++            ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
++            cambiados.append(f"{ruta.name}: reglas de las secciones jubiladas comentadas")
++
++    # etiquetas.txt: quitar SOLO las lineas de las fotos de prueba (si existen);
++    # las demas etiquetas (moto/casco/caras) se conservan tal cual.
++    if ETIQ.exists():
++        ls = ETIQ.read_text(encoding="utf-8").splitlines()
++        out, quitadas = [], 0
++        for ln in ls:
++            s = ln.strip()
++            partes = [x.strip() for x in s.split("|")]
++            if not s.startswith("#") and len(partes) == 2 and partes[0].lower() in FOTOS_PRUEBA \
++               and any((FOTOS / carp).exists() for carp in CARPETAS_JUBILADAS):
++                quitadas += 1
++                continue
++            out.append(ln)
++        if quitadas:
++            ETIQ.write_text("\n".join(out) + "\n", encoding="utf-8")
++            cambiados.append(f"etiquetas.txt: {quitadas} regla(s) de fotos de prueba eliminadas")
++
++    if cambiados:
++        for c in cambiados:
++            print("+ " + c)
++    else:
++        print('Ya estaban jubiladas "Legado" y "Prueba Trimestre" (no toqué nada).')
++    return 0
++
++
++def revertir():
++    """Descomenta las lineas JUBILADAS de las secciones (devuelve Legado/Prueba)."""
++    claves = set(JUBILAR)
++    recuperadas = 0
++    for ruta in [TRIM] + OTRAS + [ETIQ]:
++        if not ruta.exists():
++            continue
++        ls = ruta.read_text(encoding="utf-8").splitlines()
++        out = []
++        for ln in ls:
++            s = ln.strip()
++            if s.startswith("# JUBILADO") and "|" in s:
++                cuerpo = s.split(": ", 1)[1] if ": " in s else ""
++                if _es_de_seccion(cuerpo, claves):
++                    out.append(cuerpo)
++                    recuperadas += 1
++                    continue
++            out.append(ln)
++        ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
++    print(f"+ Se devolvieron {recuperadas} línea(s)." if recuperadas else "No había nada jubilado que devolver.")
++    if recuperadas:
++        print("Ejecuta de nuevo la actualización para regenerar la galería.")
++    return 0
++
++
++# ------------------------------------------------------------- fotos.js (B/C) --
++def regenerar_galeria():
++    r = subprocess.run([sys.executable, str(HERR / "actualizar_galeria.py")], cwd=RAIZ)
++    if r.returncode != 0:
++        print("AVISO: actualizar_galeria.py falló; revisa lo anterior e inténtalo otra vez.")
++    return r.returncode
++
++
++# --------------------------------------------------------------- parches (B) --
++def parche_webp(hechos):
++    ruta = RAIZ / "assets" / "js" / "jfz.js"
++    s = ruta.read_text(encoding="utf-8")
++    cambios = [
++        ('f.replace(/\\.jpg$/i, "")', 'f.replace(/\\.(jpe?g|png|webp)$/i, "")'),
++        ('/^IMG_(\\d+)\\.jpg$/i', '/^IMG_(\\d+)\\.(?:jpe?g|png|webp)$/i'),
++    ]
++    n = 0
++    for viejo, nuevo in cambios:
++        if viejo in s:
++            s = s.replace(viejo, nuevo)
++            n += 1
++        elif nuevo not in s:
++            print("AVISO (webp): no encontré el texto esperado en jfz.js (¿lo editaste?). Avísale a Claude.")
++    if n:
++        ruta.write_text(s, encoding="utf-8")
++        hechos.append(f"Parche WebP aplicado ({n} cambios)")
++
++
++def parche_galeria(hechos):
++    ruta = RAIZ / "gallery.html"
++    s = ruta.read_text(encoding="utf-8")
++    pares = [
++        ('<link href="assets/css/jfz.css" rel="stylesheet">', '<link href="assets/css/galeria-plus.css" rel="stylesheet">'),
++        ('<script src="assets/js/jfz.js"></script>', '<script src="assets/js/galeria-plus.js"></script>'),
++    ]
++    n = 0
++    for ancla, nueva in pares:
++        if nueva in s:
++            continue
++        if ancla not in s:
++            print("AVISO (galería): no encontré " + ancla + " en gallery.html. Avísale a Claude.")
++            continue
++        s = s.replace(ancla, ancla + "\n  " + nueva)
++        n += 1
++    if n:
++        ruta.write_text(s, encoding="utf-8")
++        hechos.append(f"Galería plus conectada ({n} cambios)")
++
++
++LUPA = '<a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fotos" title="Buscar fotos"><i class="bi bi-search"></i></a>'
++
++
++def _reemplazo(ruta, viejo, nuevo, etiqueta, hechos):
++    s = ruta.read_text(encoding="utf-8")
++    if nuevo in s:
++        return
++    if viejo not in s:
++        print(f"AVISO ({etiqueta}): no encontré el texto esperado en {ruta.name} (¿lo editaste a mano?). Avísale a Claude.")
++        return
++    ruta.write_text(s.replace(viejo, nuevo, 1), encoding="utf-8")
++    hechos.append(etiqueta)
++
++
++PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
++<html lang="es-419">
++
++<head>
++  <meta charset="utf-8">
++  <meta content="width=device-width, initial-scale=1.0" name="viewport">
++  <title>Herramientas | JuanetoFZ</title>
++  <meta name="description" content="Botones consolidados de las herramientas locales del sitio.">
++
++  <!-- Íconos del sitio -->
++  <link href="../assets/img/favicon.png" rel="icon">
++  <link href="../assets/img/apple-touch-icon.png" rel="apple-touch-icon">
++
++  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
++  <link href="https://fonts.googleapis.com" rel="preconnect">
++  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
++  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
++
++  <!-- CSS de librerías -->
++  <link href="../assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
++  <link href="../assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
++  <link href="../assets/vendor/aos/aos.css" rel="stylesheet">
++  <link href="../assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
++  <link href="../assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
++
++  <!-- CSS principal y personalización JuanetoFZ -->
++  <link href="../assets/css/main.css" rel="stylesheet">
++  <link href="../assets/css/jfz.css" rel="stylesheet">
++</head>
++
++<body data-page="herramientas">
++
++  <!-- El menú superior se genera en ../assets/js/jfz.js -->
++  <header id="header" class="header d-flex align-items-center sticky-top"></header>
++
++  <main class="main">
++
++    <!-- Título de la página -->
++    <div class="page-title" data-aos="fade">
++      <div class="heading">
++        <div class="container">
++          <div class="row d-flex justify-content-center text-center">
++            <div class="col-lg-8">
++              <h1>Herramientas</h1>
++              <p class="mb-0">Todos los botones de mi flujo local, consolidados en un solo lugar.</p>
++            </div>
++          </div>
++        </div>
++      </nav>
++    </div>
++
++    <section id="herramientas" class="gallery section">
++      <div class="container" data-aos="fade-up">
++        <div class="jfz-panel">
++          <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
++          <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
++            <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.
++            La «Actualización definitiva» además dejó sin efecto las secciones antiguas
++            <strong>Legado</strong> y <strong>Prueba Trimestre</strong> (sin mover ninguna foto de la galería).</p>
++          <div class="jfz-herr-botones">
++            <a class="btn-get-started" href="actualizacion_definitiva.bat" download><i class="bi bi-play-circle"></i> Actualización definitiva (todo en uno)</a>
++          </div>
++          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
++
++          <h2 class="jfz-sub">Las piezas, por separado</h2>
++          <div class="row gy-4 mt-1">
++            <div class="col-md-6 col-xl-4">
++              <div class="jfz-serv">
++                <i class="bi bi-gear-wide-connected"></i>
++                <h3>Actualización definitiva</h3>
++                <p>Script único que jubila Legado y Prueba Trimestre, aplica los parches del sitio, consolida los botones y regenera la galería (<code>actualizacion_definitiva.py</code>). Con <code>--revertir</code> devuelve esas secciones.</p>
++                <a class="jfz-svc-add" href="actualizacion_definitiva.py" download><i class="bi bi-download"></i> Descargar script</a>
++              </div>
++            </div>
++            <div class="col-md-6 col-xl-4">
++              <div class="jfz-serv">
++                <i class="bi bi-camera-reels"></i>
++                <h3>Convertir a WebP</h3>
++                <p>RAW / CR2 / JPG &rarr; WebP con marca de agua y fecha EXIF (<code>preparar_fotos.py</code> + <code>marca_agua.png</code>). La «Actualización definitiva» ya lo ejecuta sola.</p>
++                <a class="jfz-svc-add" href="preparar_fotos.py" download><i class="bi bi-download"></i> Descargar script</a>
++              </div>
++            </div>
++            <div class="col-md-6 col-xl-4">
++              <div class="jfz-serv">
++                <i class="bi bi-collection"></i>
++                <h3>Actualizar galería</h3>
++                <p>Regenera <code>assets/js/fotos.js</code> con fechas, etiquetas y trimestres (<code>actualizar_galeria.py</code>). La «Actualización definitiva» ya lo ejecuta sola.</p>
++                <a class="jfz-svc-add" href="actualizar_galeria.py" download><i class="bi bi-download"></i> Descargar script</a>
++              </div>
++            </div>
++            <div class="col-md-6 col-xl-4">
++              <div class="jfz-serv">
++                <i class="bi bi-bag-check"></i>
++                <h3>Pedido + originales</h3>
++                <p>El botón «Descargar pedido (.ps1)» del carrito genera un script de PowerShell que copia los <strong>originales</strong> (RAW/CR2/JPG) del pedido desde <code>por-procesar/</code> a una carpeta de entrega. Aquí tienes también el modelo manual: pásale los nombres como argumentos.</p>
++                <a class="jfz-svc-add" href="../carrito.html"><i class="bi bi-cart3"></i> Ir al carrito</a>
++                <a class="jfz-svc-add" href="pedido.ps1" download><i class="bi bi-download"></i> Descargar pedido.ps1</a>
++              </div>
++            </div>
++            <div class="col-md-6 col-xl-4">
++              <div class="jfz-serv">
++                <i class="bi bi-tags"></i>
++                <h3>Listas de datos</h3>
++                <p>Los archivos <code>trimestres.txt</code>, <code>fechas.txt</code> y <code>etiquetas.txt</code> están en la carpeta <code>fotos/</code>. Sus formatos, abajo.</p>
++                <a class="jfz-svc-add" href="#listas"><i class="bi bi-journal-text"></i> Ver formatos</a>
++              </div>
++            </div>
++          </div>
++
++          <h2 class="jfz-sub" id="listas">Formatos de las listas (carpeta fotos/)</h2>
++          <div class="jfz-panel jfz-herr-notas">
++            <p><strong>trimestres.txt</strong> — una línea por sección: <code>t4 | 4to Trimestre 2026</code></p>
++            <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
++            <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
++            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Actualización definitiva».</p>
++          </div>
++        </div>
++      </div>
++    </section>
++
++  </main>
++
++  <!-- El pie de página se genera en ../assets/js/jfz.js -->
++  <footer id="footer" class="footer"></footer>
++
++  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
++
++  <!-- JS de librerías -->
++  <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
++  <script src="../assets/vendor/aos/aos.js"></script>
++  <script src="../assets/vendor/glightbox/js/glightbox.min.js"></script>
++  <script src="../assets/vendor/swiper/swiper-bundle.min.js"></script>
++
++  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
++  <script src="../assets/js/config.js"></script>
++  <script src="../assets/js/servicios.js"></script>
++  <script src="../assets/js/fotos.js"></script>
++  <script src="../assets/js/jfz.js"></script>
++  <script src="../assets/js/main.js"></script>
++
++</body>
++
++</html>
++"""
++
++
++def consolidar(hechos):
++    """Equivalente a consolidar_sitio.py (parches del sitio, página de herramientas)."""
++    # 1) Panel de herramientas: siempre se regenera (esta versión es la definitiva)
++    pag = HERR / "index.html"
++    pag.write_text(PAGINA_HERRAMIENTAS, encoding="utf-8")
++    hechos.append("herramientas/index.html regenerada (panel actualizado)")
++
++    jfz = RAIZ / "assets" / "js" / "jfz.js"
++
++    # 2) Menú: enlace "Herramientas" antes de Contacto (si no estaba ya)
++    jfz_txt = jfz.read_text(encoding="utf-8")
++    if 'href=\\"herramientas/index.html\\"' in jfz_txt or 'href="herramientas/index.html"' in jfz_txt:
++        pass  # el enlace ya está puesto (consolidación anterior): no duplicar
++    else:
++        nav_viejo = '\'<li><a href="contact.html"\' + act("contacto") + ">Contacto</a></li>"'
++        nav_nuevo = '\'<li><a href="herramientas/index.html"\' + act("herramientas") + ">Herramientas</a></li>"' + "\\n      " + nav_viejo
++        _reemplazo(jfz, nav_viejo, nav_nuevo, "Menú: enlace «Herramientas» agregado", hechos)
++
++    # la lupa ya NO va en el header: si estaba puesta, se quita (buscador oculto a pedido)
++    s = jfz.read_text(encoding="utf-8")
++    if LUPA in s:
++        jfz.write_text(s.replace(LUPA, "", 1), encoding="utf-8")
++        hechos.append("Header: lupa de búsqueda quitada (buscador oculto a pedido)")
++
++    # 3) index.html: "Ver galería completa" apunta a la galeria normal
++    _reemplazo(RAIZ / "index.html",
++               '<a href="gallery.html#buscar" class="btn-get-started">Ver galería completa</a>',
++               '<a href="gallery.html" class="btn-get-started">Ver galería completa</a>',
++               "index.html: «Ver galería completa» apunta a la galería normal", hechos)
++
++    # 4) gallery.html: enlace a la página de herramientas bajo las pestañas
++    gal = RAIZ / "gallery.html"
++    gtxt = gal.read_text(encoding="utf-8")
++    if 'href="herramientas/index.html"' in gtxt:
++        pass  # el enlace ya está puesto (consolidación anterior): no duplicar
++    else:
++        _reemplazo(gal,
++                   '<div class="jfz-tabs" id="jfz-tabs"></div>',
++                   '<div class="jfz-tabs" id="jfz-tabs"></div>\n        <div class="jfz-tabs-linea"><a href="herramientas/index.html" class="jfz-herr-enlace"><i class="bi bi-tool"></i> Herramientas</a></div>',
++                   "gallery.html: enlace a Herramientas agregado", hechos)
++
++    # 5) jfz.js: llegar con #buscar enfoca el buscador
++    s = jfz.read_text(encoding="utf-8")
++    if 'hash === "#buscar"' not in s:
++        viejo_fin = 'window.addEventListener("hashchange", showTab);'
++        nuevo_fin = (viejo_fin + "\n    if (location.hash === \"#buscar\") { setTimeout(function () { var bq = $(\"#jfz-q\"); if (bq) { try { bq.scrollIntoView({ behavior: \"smooth\", block: \"center\" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }")
++        if viejo_fin in s:
++            jfz.write_text(s.replace(viejo_fin, nuevo_fin, 1), encoding="utf-8")
++            hechos.append("jfz.js: el enlace #buscar hace scroll y enfoca el buscador")
++        else:
++            print('AVISO (#buscar): no encontré "hashchange" en jfz.js. Avísale a Claude.')
++
++    # 6) Pie de página: enlace a Herramientas
++    s = jfz.read_text(encoding="utf-8")
++    pie_viejo = '\'<div class="credits">'
++    pie_nuevo = ('\'<div class="jfz-pie-herr"><a href="herramientas/index.html"><i class="bi bi-tool"></i> Herramientas del fotógrafo</a></div>\' +' + "\\n        " + pie_viejo)
++    if "jfz-pie-herr" not in s:
++        if pie_viejo in s:
++            jfz.write_text(s.replace(pie_viejo, pie_nuevo, 1), encoding="utf-8")
++            hechos.append("Pie de página: enlace a Herramientas agregado")
++        else:
++            print("AVISO (pie): no encontré la sección «credits» del footer en jfz.js. Avísale a Claude.")
++
++    # 7) jfz.css: estilos de los paneles de herramientas
++    css = RAIZ / "assets" / "css" / "jfz.css"
++    extra_css = """
++/* ---- botones consolidados (header + página de herramientas) ---- */
++.jfz-buscabox { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); color: #fff; text-decoration: none; transition: .2s; }
++.jfz-buscabox:hover { background: var(--accent-color); border-color: var(--accent-color); }
++.jfz-tabs-linea { display: flex; justify-content: flex-end; margin-bottom: 14px; }
++.jfz-herr-enlace { font: 500 14px var(--nav-font); letter-spacing: .05em; color: rgba(255,255,255,.75); text-decoration: none; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 6px 14px; }
++.jfz-herr-enlace:hover { color: #fff; border-color: var(--accent-color); }
++.jfz-herr-botones { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0 6px; }
++.jfz-herr-notas p { margin-bottom: 8px; }
++.jfz-pie-herr { text-align: center; margin-top: 10px; }
++.jfz-pie-herr a { color: rgba(255,255,255,.6); text-decoration: none; font-size: 14px; }
++.jfz-pie-herr a:hover { color: var(--accent-color); }
++"""
++    scss = css.read_text(encoding="utf-8")
++    if ".jfz-buscabox" not in scss:
++        css.write_text(scss.rstrip() + "\n" + extra_css, encoding="utf-8")
++        hechos.append("jfz.css: estilos de los paneles de herramientas")
++
++
++BAT_DEFINITIVA = """@echo off
++rem ============================================================
++rem  "actualizacion_definitiva.bat" - EL BOTON UNICO de este sitio.
++rem  Doble clic y hace TODO el flujo automatico, en orden:
++rem    1) actualizacion_definitiva.py  (jubila Legado y Prueba Trimestre
++rem       SIN mover fotos, aplica los parches del sitio y consolida
++rem       los botones) + regenera la galeria
++rem    2) preparar_fotos.py            (fotos nuevas -> WebP con marca
++rem       de agua; usa herramientas\\marca_agua.png)
++rem    3) actualizar_galeria.py        (regenera assets/js/fotos.js)
++rem  Tambien sirve para ejecutar solo UNA pieza intermedia:
++rem    "actualizacion_definitiva.bat" 1  -> solo jubilacion + parches
++rem    "actualizacion_definitiva.bat" 2  -> hasta convertir fotos
++rem    "actualizacion_definitiva.bat" 3  -> todo el flujo (por defecto)
++rem  Para DEVOLVER Legado/Prueba Trimestre a la galeria:
++rem    py herramientas\\actualizacion_definitiva.py --revertir
++rem ============================================================
++chcp 65001 >nul
++setlocal EnableDelayedExpansion
++set PYTHONIOENCODING=utf-8
++cd /d "%~dp0.."
++
++rem --- elige el interprete de Python (py = el lanzador de Windows; si no, python) ---
++set PY=py
++where py >nul 2>nul || set PY=python
++
++rem --- paso final por defecto: 3 = todo el flujo; acepta un numero como argumento ---
++set PASO_FINAL=3
++if not "%~1"=="" (
++  echo %~1| findstr /r "^[1-3]$" >nul && set PASO_FINAL=%~1
++)
++
++echo === 1^) Actualizacion definitiva: jubilar Legado/Prueba + parches + galeria ===
++%PY% herramientas\\actualizacion_definitiva.py
++if errorlevel 1 (echo Hubo un problema en la actualizacion. Avsale a Claude. & goto fin)
++if %PASO_FINAL% LSS 2 goto fin
++echo.
++
++echo === 2^) Convirtiendo fotos nuevas a WebP ===
++%PY% herramientas\\preparar_fotos.py
++if errorlevel 2 (echo Hubo un problema al convertir. Avsale a Claude. & goto fin)
++if errorlevel 1 echo   ^(no habia fotos nuevas: continuo con la galeria^)
++if %PASO_FINAL% LSS 3 goto fin
++echo.
++
++echo === 3^) Actualizando la galeria ===
++%PY% herramientas\\actualizar_galeria.py
++
++:fin
++echo.
++echo Cuando termine: abre GitHub Desktop, escribe un titulo y pulsa "Commit to main" y luego "Push origin".
++pause
++"""
++
++
++def crear_bat(hechos):
++    bat = HERR / "actualizacion_definitiva.bat"
++    bat.write_text(BAT_DEFINITIVA, encoding="utf-8")
++    hechos.append("Creado herramientas/actualizacion_definitiva.bat (el nuevo botón único)")
++
++
++def main():
++    if "--revertir" in sys.argv:
++        rc = revertir()
++        return rc or regenerar_galeria()
++
++    print("=== Actualización definitiva (borrador) ===")
++    if not (HERR / "marca_agua.png").exists():
++        print(MARCA_AGUIO.replace("\n", " "))
++
++    # A) jubilar Legado y Prueba Trimestre (solo textos, las fotos no se mueven)
++    print("\n--- A) Jubilando secciones de la galería (sin mover fotos) ---")
++    jubilar()
++
++    # B) parches del sitio (webp + galería plus + consolidación)
++    print("\n--- B) Parches y consolidación del sitio ---")
++    hechos = []
++    parche_webp(hechos)
++    parche_galeria(hechos)
++    consolidar(hechos)
++    for h in hechos:
++        print("+ " + h)
++    if not hechos:
++        print("Sitio: los parches ya estaban aplicados (no hice nada).")
++
++    # C) boton unico
++    print("\n--- C) Botón único ---")
++    hechos_bat = []
++    crear_bat(hechos_bat)
++    for h in hechos_bat:
++        print("+ " + h)
++
++    # D) si todavia existiera algun boton unico heredado, lo reemplaza este script.
++    for viejo_boton in ("preparar_y_actualizar.bat", "actualizar todo.bat"):
++        ruta_boton = HERR / viejo_boton
++        if ruta_boton.exists():
++            ruta_boton.unlink()
++            print(f"+ Eliminado el boton heredado {viejo_boton} (ahora existe actualizacion_definitiva.bat)")
++
++    # E) regenerar la galeria con las secciones ya jubiladas
++    print("\n--- D) Regenerando assets/js/fotos.js ---")
++    rc = regenerar_galeria()
++
++    print()
++    print('Listo: "Legado" y "Prueba Trimestre" dejaron de existir en la galería.')
++    print("Las fotos NO fueron movidas: si quieres retirarlas físicamente, copia lo que")
++    print("te interese a por-procesar/legado/ y borra fotos/Legado y fotos/t9test a mano.")
++    print('Para el día a día usa herramientas/"actualizacion_definitiva.bat" (doble clic).')
++    return rc
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/herramientas/actualizar todo.bat b/herramientas/actualizar todo.bat
+deleted file mode 100644
+index 1b7e693..0000000
+--- a/herramientas/actualizar todo.bat	
++++ /dev/null
+@@ -1,58 +0,0 @@
+-@echo off
+-rem ============================================================
+-rem  "actualizar todo.bat" - EL BOTON UNICO de este sitio.
+-rem  Doble clic y hace TODO el flujo automatico, en orden:
+-rem    0) consolidar_sitio.py    (repara/agrega los botones del sitio)
+-rem    1) parche_webp.py         (el sitio reconoce fotos .webp)
+-rem    2) parche_galeria.py      (conecta el mosaico mejorado)
+-rem    3) preparar_fotos.py      (fotos nuevas -> WebP con marca de agua)
+-rem       -- si no hay nada nuevo en por-procesar, continua igual --
+-rem    4) actualizar_galeria.py  (regenera assets/js/fotos.js)
+-rem  Tambien sirve para ejecutar solo UNA pieza intermedia:
+-rem    "actualizar todo.bat" 3     -> hasta convertir fotos (sin galer�a)
+-rem    "actualizar todo.bat" 4     -> todo el flujo (igual que sin n�mero)
+-rem ============================================================
+-chcp 65001 >nul
+-setlocal EnableDelayedExpansion
+-set PYTHONIOENCODING=utf-8
+-cd /d "%~dp0.."
+-
+-rem --- elige el interprete de Python (py = el lanzador de Windows; si no, python) ---
+-set PY=py
+-where py >nul 2>nul || set PY=python
+-
+-rem --- paso final por defecto: 4 = todo el flujo; acepta un numero como argumento ---
+-set PASO_FINAL=4
+-if not "%~1"=="" (
+-  echo %~1| findstr /r "^[1-4]$" >nul && set PASO_FINAL=%~1
+-)
+-
+-echo === 0^) Consolidando botones del sitio ===
+-%PY% herramientas\consolidar_sitio.py
+-if %PASO_FINAL% LSS 1 goto fin
+-echo.
+-
+-echo === 1^) Parche WebP del sitio ===
+-%PY% herramientas\parche_webp.py
+-if %PASO_FINAL% LSS 2 goto fin
+-echo.
+-
+-echo === 2^) Parche de la galeria ===
+-%PY% herramientas\parche_galeria.py
+-if %PASO_FINAL% LSS 3 goto fin
+-echo.
+-
+-echo === 3^) Convirtiendo fotos nuevas a WebP ===
+-%PY% herramientas\preparar_fotos.py
+-if errorlevel 2 (echo Hubo un problema al convertir. Av�sale a Claude. & goto fin)
+-if errorlevel 1 echo   ^(no habia fotos nuevas: continuo con la galeria^)
+-if %PASO_FINAL% LSS 4 goto fin
+-echo.
+-
+-echo === 4^) Actualizando la galeria ===
+-%PY% herramientas\actualizar_galeria.py
+-
+-:fin
+-echo.
+-echo Cuando termine: abre GitHub Desktop, escribe un titulo y pulsa "Commit to main" y luego "Push origin".
+-pause
+diff --git a/herramientas/consolidar_sitio.py b/herramientas/consolidar_sitio.py
+deleted file mode 100644
+index 4996206..0000000
+--- a/herramientas/consolidar_sitio.py
++++ /dev/null
+@@ -1,299 +0,0 @@
+-"""Consolida en un solo lugar los botones de herramientas/ y del sitio. Se puede ejecutar muchas veces sin problema.
+-
+-Qué hace (cada ajuste es idempotente: si ya está aplicado, no toca nada):
+-  1. Crea  herramientas/index.html : la página que CONSOLIDA en un solo panel los botones
+-     del flujo local (ejecutar todo, convertir fotos, actualizar galería, buscador,
+-     migrar Legado, pedido PowerShell y formatos de las listas).
+-  2. Menú superior (jfz.js): agrega "Herramientas" antes de "Contacto" y mete la lupa
+-     de búsqueda dentro del bloque de acciones, junto al carrito y el botón de sesión.
+-     Orden final de los botones: Inicio | Sobre mí | Galería | Servicios | Herramientas |
+-     Contacto | [lupa] [carrito] [sesión].
+-  3. index.html: el botón "Ver galería completa" aterriza directo en el buscador (#buscar).
+-  4. gallery.html: enlace a la página de herramientas bajo las pestañas; jfz.js enfoca el
+-     buscador cuando alguien llega con #buscar.
+-  5. jfz.css: estilos de la lupa del header y de los paneles de herramientas.
+-  6. Pie de página (jfz.js): enlace "Herramientas del fotógrafo".
+-  7. preparar_y_actualizar.bat: ejecuta este script primero, para que el sitio quede
+-     siempre consolidado después de cada actualización.
+-
+-Uso manual (normalmente basta con "actualizar todo.bat"):
+-    py herramientas/consolidar_sitio.py
+-Si algún día editas esas partes a mano y aparece un aviso "no encontré ...", avísale a Claude.
+-"""
+-from pathlib import Path
+-
+-RAIZ = Path(__file__).resolve().parent.parent
+-
+-PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
+-<html lang="es-419">
+-
+-<head>
+-  <meta charset="utf-8">
+-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+-  <title>Herramientas | JuanetoFZ</title>
+-  <meta name="description" content="Botones consolidados de las herramientas locales del sitio.">
+-
+-  <!-- Íconos del sitio -->
+-  <link href="../assets/img/favicon.png" rel="icon">
+-  <link href="../assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+-
+-  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
+-  <link href="https://fonts.googleapis.com" rel="preconnect">
+-  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+-
+-  <!-- CSS de librerías -->
+-  <link href="../assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+-  <link href="../assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+-  <link href="../assets/vendor/aos/aos.css" rel="stylesheet">
+-  <link href="../assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+-  <link href="../assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+-
+-  <!-- CSS principal y personalización JuanetoFZ -->
+-  <link href="../assets/css/main.css" rel="stylesheet">
+-  <link href="../assets/css/jfz.css" rel="stylesheet">
+-</head>
+-
+-<body data-page="herramientas">
+-
+-  <!-- El menú superior se genera en ../assets/js/jfz.js -->
+-  <header id="header" class="header d-flex align-items-center sticky-top"></header>
+-
+-  <main class="main">
+-
+-    <!-- Título de la página -->
+-    <div class="page-title" data-aos="fade">
+-      <div class="heading">
+-        <div class="container">
+-          <div class="row d-flex justify-content-center text-center">
+-            <div class="col-lg-8">
+-              <h1>Herramientas</h1>
+-              <p class="mb-0">Todos los botones de mi flujo local, consolidados en un solo lugar.</p>
+-            </div>
+-          </div>
+-        </div>
+-      </div>
+-      <nav class="breadcrumbs">
+-        <div class="container">
+-          <ol>
+-            <li><a href="../index.html">Inicio</a></li>
+-            <li class="current">Herramientas</li>
+-          </ol>
+-        </div>
+-      </nav>
+-    </div>
+-
+-    <section id="herramientas" class="gallery section">
+-      <div class="container" data-aos="fade-up">
+-        <div class="jfz-panel">
+-          <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
+-          <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
+-            <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.</p>
+-          <div class="jfz-herr-botones">
+-            <a class="btn-get-started" href="actualizar%20todo.bat" download><i class="bi bi-play-circle"></i> Actualizar todo (convertir + galería)</a>
+-          </div>
+-          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
+-
+-          <h2 class="jfz-sub">Las piezas, por separado</h2>
+-          <div class="row gy-4 mt-1">
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-camera-reels"></i>
+-                <h3>Convertir a WebP</h3>
+-                <p>RAW / CR2 / JPG &rarr; WebP con marca de agua y fecha EXIF (<code>preparar_fotos.py</code>).</p>
+-                <a class="jfz-svc-add" href="preparar_fotos.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-collection"></i>
+-                <h3>Actualizar galería</h3>
+-                <p>Regenera <code>assets/js/fotos.js</code> con fechas, etiquetas y trimestres (<code>actualizar_galeria.py</code>).</p>
+-                <a class="jfz-svc-add" href="actualizar_galeria.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-search"></i>
+-                <h3>Buscar fotos (oculto)</h3>
+-                <p>El buscador con filtros y las etiquetas #moto / #casco / #caras quedaron ocultos a pedido del dueño.</p>
+-                <a class="jfz-svc-add" href="../gallery.html"><i class="bi bi-arrow-right-circle"></i> Ir a la galería</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-box-arrow-right"></i>
+-                <h3>Migrar Legado</h3>
+-                <p>Pasa las fotos de <code>fotos/Legado</code> a <code>por-procesar/legado</code> para jubilar la carpeta (<code>migrar_legado.py</code>).</p>
+-                <a class="jfz-svc-add" href="migrar_legado.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-bag-check"></i>
+-                <h3>Pedido + originales</h3>
+-                <p>El botón «Descargar pedido (.ps1)» del carrito genera un script de PowerShell que copia los <strong>originales</strong> (RAW/CR2/JPG) del pedido desde <code>por-procesar/</code> a una carpeta de entrega. Aquí tienes también el modelo manual: pásale los nombres como argumentos.</p>
+-                <a class="jfz-svc-add" href="../carrito.html"><i class="bi bi-cart3"></i> Ir al carrito</a>
+-                <a class="jfz-svc-add" href="pedido.ps1" download><i class="bi bi-download"></i> Descargar pedido.ps1</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-tags"></i>
+-                <h3>Listas de datos</h3>
+-                <p>Los archivos <code>trimestres.txt</code>, <code>fechas.txt</code> y <code>etiquetas.txt</code> están en la carpeta <code>fotos/</code>. Sus formatos, abajo.</p>
+-                <a class="jfz-svc-add" href="#listas"><i class="bi bi-journal-text"></i> Ver formatos</a>
+-              </div>
+-            </div>
+-          </div>
+-
+-          <h2 class="jfz-sub" id="listas">Formatos de las listas (carpeta fotos/)</h2>
+-          <div class="jfz-panel jfz-herr-notas">
+-            <p><strong>trimestres.txt</strong> — una línea por sección: <code>t4 | 4to Trimestre 2026</code></p>
+-            <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
+-            <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
+-            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Actualizar todo».</p>
+-          </div>
+-        </div>
+-      </div>
+-    </section>
+-
+-  </main>
+-
+-  <!-- El pie de página se genera en ../assets/js/jfz.js -->
+-  <footer id="footer" class="footer"></footer>
+-
+-  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+-
+-  <!-- JS de librerías -->
+-  <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+-  <script src="../assets/vendor/aos/aos.js"></script>
+-  <script src="../assets/vendor/glightbox/js/glightbox.min.js"></script>
+-  <script src="../assets/vendor/swiper/swiper-bundle.min.js"></script>
+-
+-  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
+-  <script src="../assets/js/config.js"></script>
+-  <script src="../assets/js/servicios.js"></script>
+-  <script src="../assets/js/fotos.js"></script>
+-  <script src="../assets/js/jfz.js"></script>
+-  <script src="../assets/js/main.js"></script>
+-
+-</body>
+-
+-</html>
+-"""
+-
+-LUPA = '<a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fotos" title="Buscar fotos"><i class="bi bi-search"></i></a>'
+-
+-
+-def _reemplazo(ruta, viejo, nuevo, etiqueta, hechos):
+-    """Reemplaza `viejo` por `nuevo` una sola vez. Idempotente de verdad: si `nuevo`
+-    ya está en el archivo (aunque `viejo` siga apareciendo dentro de él), no toca nada."""
+-    s = ruta.read_text(encoding="utf-8")
+-    if nuevo in s:
+-        return
+-    if viejo not in s:
+-        print(f"AVISO ({etiqueta}): no encontré el texto esperado en {ruta.name} (¿lo editaste a mano?). Avísale a Claude.")
+-        return
+-    ruta.write_text(s.replace(viejo, nuevo, 1), encoding="utf-8")
+-    hechos.append(etiqueta)
+-
+-
+-def main():
+-    hechos = []
+-
+-    # --- 1. Página nueva: herramientas/index.html (botones consolidados) ---
+-    pag = RAIZ / "herramientas" / "index.html"
+-    if not pag.exists():
+-        pag.write_text(PAGINA_HERRAMIENTAS, encoding="utf-8")
+-        hechos.append("herramientas/index.html creada (panel único de botones)")
+-    else:
+-        print("herramientas/index.html: ya existe (si quieres regenerarla, bórrala y repite).")
+-
+-    # --- 2. Header: "Herramientas" en el menú (la lupa de búsqueda se QUITÓ a pedido del dueño) ---
+-    jfz = RAIZ / "assets" / "js" / "jfz.js"
+-    nav_viejo = '\'<li><a href="contact.html"\' + act("contacto") + ">Contacto</a></li>"'
+-    nav_nuevo = '\'<li><a href="herramientas/index.html"\' + act("herramientas") + ">Herramientas</a></li>" +\n      ' + nav_viejo
+-    _reemplazo(jfz, nav_viejo, nav_nuevo, "Menú: enlace «Herramientas» agregado", hechos)
+-
+-    # la lupa ya NO va en el header: si estaba puesta, se quita (barra de búsqueda eliminada a pedido)
+-    s = jfz.read_text(encoding="utf-8")
+-    if LUPA in s:
+-        jfz.write_text(s.replace(LUPA, "", 1), encoding="utf-8")
+-        hechos.append("Header: lupa de búsqueda quitada (el buscador quedó oculto a pedido)")
+-
+-    # --- 3. index.html: el botón principal ya NO apunta al buscador (buscador oculto a pedido) ---
+-    _reemplazo(RAIZ / "index.html",
+-               '<a href="gallery.html#buscar" class="btn-get-started">Ver galería completa</a>',
+-               '<a href="gallery.html" class="btn-get-started">Ver galería completa</a>',
+-               "index.html: «Ver galería completa» vuelve a apuntar a la galeria normal", hechos)
+-
+-    # --- 4. gallery.html: enlace a la página de herramientas bajo las pestañas ---
+-    _reemplazo(RAIZ / "gallery.html",
+-               '<div class="jfz-tabs" id="jfz-tabs"></div>',
+-               '<div class="jfz-tabs" id="jfz-tabs"></div>\n        <div class="jfz-tabs-linea"><a href="herramientas/index.html" class="jfz-herr-enlace"><i class="bi bi-tool"></i> Herramientas</a></div>',
+-               "gallery.html: enlace a Herramientas agregado", hechos)
+-
+-    # --- 5. jfz.js: llegar con #buscar enfoca el buscador ---
+-    s = jfz.read_text(encoding="utf-8")
+-    if 'hash === "#buscar"' not in s:
+-        viejo_fin = 'window.addEventListener("hashchange", showTab);'
+-        nuevo_fin = (viejo_fin + "\n    if (location.hash === \"#buscar\") { setTimeout(function () { var bq = $(\"#jfz-q\"); if (bq) { try { bq.scrollIntoView({ behavior: \"smooth\", block: \"center\" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }")
+-        if viejo_fin in s:
+-            jfz.write_text(s.replace(viejo_fin, nuevo_fin, 1), encoding="utf-8")
+-            hechos.append("jfz.js: el enlace #buscar hace scroll y enfoca el buscador")
+-        else:
+-            print('AVISO (#buscar): no encontré "hashchange" en jfz.js. Avísale a Claude.')
+-
+-    # --- 6. Pie de página: enlace a Herramientas ---
+-    s = jfz.read_text(encoding="utf-8")
+-    pie_viejo = '\'<div class="credits">'
+-    pie_nuevo = ('\'<div class="jfz-pie-herr"><a href="herramientas/index.html"><i class="bi bi-tool"></i> Herramientas del fotógrafo</a></div>\' +\n        ' + pie_viejo)
+-    if "jfz-pie-herr" not in s:
+-        if pie_viejo in s:
+-            jfz.write_text(s.replace(pie_viejo, pie_nuevo, 1), encoding="utf-8")
+-            hechos.append("Pie de página: enlace a Herramientas agregado")
+-        else:
+-            print("AVISO (pie): no encontré la sección «credits» del footer en jfz.js. Avísale a Claude.")
+-
+-    # --- 7. jfz.css: estilos de la lupa y de los paneles de herramientas ---
+-    css = RAIZ / "assets" / "css" / "jfz.css"
+-    extra_css = """
+-/* ---- botones consolidados (header + página de herramientas) ---- */
+-.jfz-buscabox { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); color: #fff; text-decoration: none; transition: .2s; }
+-.jfz-buscabox:hover { background: var(--accent-color); border-color: var(--accent-color); }
+-.jfz-tabs-linea { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+-.jfz-herr-enlace { font: 500 14px var(--nav-font); letter-spacing: .05em; color: rgba(255,255,255,.75); text-decoration: none; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 6px 14px; }
+-.jfz-herr-enlace:hover { color: #fff; border-color: var(--accent-color); }
+-.jfz-herr-botones { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0 6px; }
+-.jfz-herr-notas p { margin-bottom: 8px; }
+-.jfz-pie-herr { text-align: center; margin-top: 10px; }
+-.jfz-pie-herr a { color: rgba(255,255,255,.6); text-decoration: none; font-size: 14px; }
+-.jfz-pie-herr a:hover { color: var(--accent-color); }
+-"""
+-    scss = css.read_text(encoding="utf-8")
+-    if ".jfz-buscabox" not in scss:
+-        css.write_text(scss.rstrip() + "\n" + extra_css, encoding="utf-8")
+-        hechos.append("jfz.css: estilos de la lupa y del panel de herramientas")
+-
+-    # --- 8. preparar_y_actualizar.bat: correr la consolidación primero (legado; el botón nuevo es "actualizar todo.bat") ---
+-    bat = RAIZ / "herramientas" / "preparar_y_actualizar.bat"
+-    if bat.exists():
+-        sbat = bat.read_text(encoding="utf-8")
+-        if "consolidar_sitio.py" not in sbat:
+-            sbat = sbat.replace("echo === 1/3 Parche del sitio ===",
+-                                "echo === 0/3 Consolidando botones del sitio ===\npy herramientas\\consolidar_sitio.py\necho.\necho === 1/3 Parche del sitio ===")
+-            bat.write_text(sbat, encoding="utf-8")
+-            hechos.append("preparar_y_actualizar.bat: ahora consolida los botones en cada ejecución")
+-
+-    if hechos:
+-        for h in hechos:
+-            print("+ " + h)
+-        print("Consolidación aplicada. Si viste AVISOS arriba, avísale a Claude (no rompí nada más).")
+-    else:
+-        print("Sitio: los botones ya estaban consolidados (no hice nada).")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
+diff --git a/herramientas/index.html b/herramientas/index.html
+deleted file mode 100644
+index fe00497..0000000
+--- a/herramientas/index.html
++++ /dev/null
+@@ -1,150 +0,0 @@
+-<!DOCTYPE html>
+-<html lang="es-419">
+-
+-<head>
+-  <meta charset="utf-8">
+-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+-  <title>Herramientas | JuanetoFZ</title>
+-  <meta name="description" content="Botones consolidados de las herramientas locales del sitio.">
+-
+-  <!-- Íconos del sitio -->
+-  <link href="../assets/img/favicon.png" rel="icon">
+-  <link href="../assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+-
+-  <!-- Tipografías: Bebas Neue (títulos), Oswald (menú), Roboto (texto) -->
+-  <link href="https://fonts.googleapis.com" rel="preconnect">
+-  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Bebas+Neue&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+-
+-  <!-- CSS de librerías -->
+-  <link href="../assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+-  <link href="../assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+-  <link href="../assets/vendor/aos/aos.css" rel="stylesheet">
+-  <link href="../assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+-  <link href="../assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+-
+-  <!-- CSS principal y personalización JuanetoFZ -->
+-  <link href="../assets/css/main.css" rel="stylesheet">
+-  <link href="../assets/css/jfz.css" rel="stylesheet">
+-</head>
+-
+-<body data-page="herramientas">
+-
+-  <!-- El menú superior se genera en ../assets/js/jfz.js -->
+-  <header id="header" class="header d-flex align-items-center sticky-top"></header>
+-
+-  <main class="main">
+-
+-    <!-- Título de la página -->
+-    <div class="page-title" data-aos="fade">
+-      <div class="heading">
+-        <div class="container">
+-          <div class="row d-flex justify-content-center text-center">
+-            <div class="col-lg-8">
+-              <h1>Herramientas</h1>
+-              <p class="mb-0">Todos los botones de mi flujo local, consolidados en un solo lugar.</p>
+-            </div>
+-          </div>
+-        </div>
+-      </div>
+-      <nav class="breadcrumbs">
+-        <div class="container">
+-          <ol>
+-            <li><a href="../index.html">Inicio</a></li>
+-            <li class="current">Herramientas</li>
+-          </ol>
+-        </div>
+-      </nav>
+-    </div>
+-
+-    <section id="herramientas" class="gallery section">
+-      <div class="container" data-aos="fade-up">
+-        <div class="jfz-panel">
+-          <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
+-          <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
+-            <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.</p>
+-          <div class="jfz-herr-botones">
+-            <a class="btn-get-started" href="actualizar%20todo.bat" download><i class="bi bi-play-circle"></i> Actualizar todo (convertir + galería)</a>
+-          </div>
+-          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
+-
+-          <h2 class="jfz-sub">Las piezas, por separado</h2>
+-          <div class="row gy-4 mt-1">
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-camera-reels"></i>
+-                <h3>Convertir a WebP</h3>
+-                <p>RAW / CR2 / JPG &rarr; WebP con marca de agua y fecha EXIF (<code>preparar_fotos.py</code>).</p>
+-                <a class="jfz-svc-add" href="preparar_fotos.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-collection"></i>
+-                <h3>Actualizar galería</h3>
+-                <p>Regenera <code>assets/js/fotos.js</code> con fechas, etiquetas y trimestres (<code>actualizar_galeria.py</code>).</p>
+-                <a class="jfz-svc-add" href="actualizar_galeria.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <!-- Buscador oculto a pedido: la barra de busqueda y las etiquetas #moto/#caras/#cascos ya no se muestran en la galeria -->
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-box-arrow-right"></i>
+-                <h3>Migrar Legado</h3>
+-                <p>Pasa las fotos de <code>fotos/Legado</code> a <code>por-procesar/legado</code> para jubilar la carpeta (<code>migrar_legado.py</code>).</p>
+-                <a class="jfz-svc-add" href="migrar_legado.py" download><i class="bi bi-download"></i> Descargar script</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-bag-check"></i>
+-                <h3>Pedido + originales</h3>
+-                <p>El botón «Descargar pedido (.ps1)» del carrito genera un script de PowerShell que copia los <strong>originales</strong> (RAW/CR2/JPG) del pedido desde <code>por-procesar/</code> a una carpeta de entrega. Aquí tienes también el modelo manual: pásale los nombres como argumentos.</p>
+-                <a class="jfz-svc-add" href="../carrito.html"><i class="bi bi-cart3"></i> Ir al carrito</a>
+-                <a class="jfz-svc-add" href="pedido.ps1" download><i class="bi bi-download"></i> Descargar pedido.ps1</a>
+-              </div>
+-            </div>
+-            <div class="col-md-6 col-xl-4">
+-              <div class="jfz-serv">
+-                <i class="bi bi-tags"></i>
+-                <h3>Listas de datos</h3>
+-                <p>Los archivos <code>trimestres.txt</code>, <code>fechas.txt</code> y <code>etiquetas.txt</code> están en la carpeta <code>fotos/</code>. Sus formatos, abajo.</p>
+-                <a class="jfz-svc-add" href="#listas"><i class="bi bi-journal-text"></i> Ver formatos</a>
+-              </div>
+-            </div>
+-          </div>
+-
+-          <h2 class="jfz-sub" id="listas">Formatos de las listas (carpeta fotos/)</h2>
+-          <div class="jfz-panel jfz-herr-notas">
+-            <p><strong>trimestres.txt</strong> — una línea por sección: <code>t4 | 4to Trimestre 2026</code></p>
+-            <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
+-            <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
+-            <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Actualizar todo».</p>
+-          </div>
+-        </div>
+-      </div>
+-    </section>
+-
+-  </main>
+-
+-  <!-- El pie de página se genera en ../assets/js/jfz.js -->
+-  <footer id="footer" class="footer"></footer>
+-
+-  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+-
+-  <!-- JS de librerías -->
+-  <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+-  <script src="../assets/vendor/aos/aos.js"></script>
+-  <script src="../assets/vendor/glightbox/js/glightbox.min.js"></script>
+-  <script src="../assets/vendor/swiper/swiper-bundle.min.js"></script>
+-
+-  <!-- JS de JuanetoFZ (el orden importa: config, fotos, jfz y al final main) -->
+-  <script src="../assets/js/config.js"></script>
+-  <script src="../assets/js/servicios.js"></script>
+-  <script src="../assets/js/fotos.js"></script>
+-  <script src="../assets/js/jfz.js"></script>
+-  <script src="../assets/js/main.js"></script>
+-
+-</body>
+-
+-</html>
+diff --git a/herramientas/jubilar_legado.py b/herramientas/jubilar_legado.py
+deleted file mode 100644
+index 6356aba..0000000
+--- a/herramientas/jubilar_legado.py
++++ /dev/null
+@@ -1,102 +0,0 @@
+-"""Pasa la sección "Legado" de la galería a "por procesar" (la quita del sitio), SIN mover fotos.
+-
+-Qué hace exactamente (solo toca archivos de texto, no mueve ni copia ninguna foto):
+-  1. Quita la línea "Legado | ..." de fotos/trimestres.txt  -> Legado deja de aparecer en la galería.
+-  2. Comenta las líneas de Legado en fotos/fechas.txt y fotos/etiquetas.txt (si las hay),
+-     para que no estorben. Los datos quedan guardados por si algún día los quieres de vuelta.
+-  3. Regenera assets/js/fotos.js ejecutando actualizar_galeria.py -> el sitio queda sin Legado.
+-
+-NO borra nada: la carpeta fotos/Legado y sus webp se quedan tal cual en tu PC.
+-Cuando quieras pasarlAs físicamente a por-procesar/legado/, usa migrar_legado.py (ese sí copia).
+-
+-Uso (consola dentro de la carpeta del proyecto):
+-    py herramientas/jubilar_legado.py          -> aplica los cambios
+-    py herramientas/jubilar_legado.py --revertir -> devuelve Legado a la galería (deshace el paso 1 y 2)
+-Para revertir también el paso 3: vuelve a ejecutar "actualizar todo.bat" después de --revertir.
+-"""
+-import subprocess
+-import sys
+-from pathlib import Path
+-
+-RAIZ = Path(__file__).resolve().parent.parent
+-TRIM = RAIZ / "fotos" / "trimestres.txt"
+-OTRAS = [RAIZ / "fotos" / "fechas.txt", RAIZ / "fotos" / "etiquetas.txt"]
+-CLAVE = "legado"   # comparamos en minúsculas: sirve tanto "Legado" como "legado"
+-
+-
+-def jubilar():
+-    cambiados = []
+-
+-    # 1) trimestres.txt: comentar la(s) línea(s) cuya carpeta sea Legado
+-    lineas = TRIM.read_text(encoding="utf-8").splitlines()
+-    nueva = []
+-    for ln in lineas:
+-        partes = [x.strip() for x in ln.split("|")]
+-        if partes and partes[0].lower() == CLAVE and not ln.strip().startswith("#"):
+-            nueva.append("# JUBILADO (antes en la galería): " + ln)
+-            cambiados.append("trimestres.txt: se quitó Legado de la galería")
+-        else:
+-            nueva.append(ln)
+-    if len(nueva) != len(lineas) or any("JUBILADO" in l for l in nueva if l not in lineas):
+-        TRIM.write_text("\n".join(nueva) + "\n", encoding="utf-8")
+-
+-    # 2) fechas.txt / etiquetas.txt: comentar las reglas que empiezan por legado (formato 3 partes)
+-    for ruta in OTRAS:
+-        if not ruta.exists():
+-            continue
+-        ls, tocado = ruta.read_text(encoding="utf-8").splitlines(), False
+-        out = []
+-        for ln in ls:
+-            partes = [x.strip() for x in ln.split("|")]
+-            if len(partes) == 3 and partes[0].lower() == CLAVE and not ln.strip().startswith("#"):
+-                out.append("# JUBILADO: " + ln); tocado = True
+-            else:
+-                out.append(ln)
+-        if tocado:
+-            ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
+-            cambiados.append(f"{ruta.name}: reglas de legado comentadas")
+-
+-    # 3) regenerar fotos.js
+-    r = subprocess.run([sys.executable, str(RAIZ / "herramientas" / "actualizar_galeria.py")], cwd=RAIZ)
+-    if r.returncode != 0:
+-        print("AVISO: actualizar_galeria.py falló; revisa lo anterior e inténtalo otra vez.")
+-        return r.returncode
+-
+-    if cambiados:
+-        for c in cambiados:
+-            print("+ " + c)
+-        print('Listo: "Legado" ya no aparece en la galería (las fotos siguen en fotos/Legado, intactas).')
+-        print("Sube los cambios con GitHub Desktop cuando quieras publicarlos.")
+-    else:
+-        print('No encontré a "Legado" activo en fotos/trimestres.txt: probablemente ya está jubilado.')
+-    return 0
+-
+-
+-def revertir():
+-    """Descomenta las líneas marcadas como JUBILADO relacionadas con legado."""
+-    recuperadas = 0
+-    for ruta in [TRIM] + OTRAS:
+-        if not ruta.exists():
+-            continue
+-        ls = ruta.read_text(encoding="utf-8").splitlines()
+-        out = []
+-        for ln in ls:
+-            s = ln.strip()
+-            if s.startswith("# JUBILADO") and "|" in s:
+-                cuerpo = s.split(": ", 1)[1] if ": " in s else ""
+-                partes = [x.strip() for x in cuerpo.split("|")]
+-                if partes and partes[0].lower() == CLAVE:
+-                    out.append(cuerpo); recuperadas += 1
+-                    continue
+-            out.append(ln)
+-        ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
+-    if recuperadas:
+-        print(f"+ Se devolvieron {recuperadas} línea(s) de legado.")
+-        print("Ejecuta ahora \"actualizar todo.bat\" para regenerar la galería con Legado.")
+-    else:
+-        print("No había nada jubilado que devolver.")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(revertir() if "--revertir" in sys.argv else jubilar())
+diff --git a/herramientas/migrar_legado.py b/herramientas/migrar_legado.py
+deleted file mode 100644
+index 0d0937f..0000000
+--- a/herramientas/migrar_legado.py
++++ /dev/null
+@@ -1,29 +0,0 @@
+-"""Pasa las fotos de fotos/Legado/ a por-procesar/legado/ y quita 'Legado' del sitio.
+-
+-Para cuando quieras jubilarya la carpeta Legado (los originales quedan solo en tu PC):
+-  py herramientas/migrar_legado.py          -> copia las .webp a por-procesar/legado/
+-Luego: borra la carpeta fotos/Legado, borra la linea 'Legado | ...' de fotos/trimestres.txt
+-y ejecuta "actualizar todo.bat". Las fechas ya estan en fotos/fechas.txt si las tenia.
+-"""
+-import shutil
+-from pathlib import Path
+-
+-RAIZ = Path(__file__).resolve().parent.parent
+-ORIGEN = RAIZ / "fotos" / "Legado"
+-DESTINO = RAIZ / "por-procesar" / "legado"
+-
+-if not ORIGEN.exists():
+-    print("No existe fotos/Legado: nada que migrar.")
+-elif input(f"Copiar {len(list(ORIGEN.iterdir()))} fotos de fotos/Legado a por-procesar/legado (sin borrar el origen). Escribe SI para continuar: ").strip().upper() != "SI":
+-    print("Cancelado.")
+-else:
+-    DESTINO.mkdir(parents=True, exist_ok=True)
+-    n = 0
+-    for f in sorted(ORIGEN.iterdir()):
+-        if f.suffix.lower() in (".webp", ".jpg", ".jpeg", ".png"):
+-            destino = DESTINO / f.name
+-            if not destino.exists():
+-                shutil.copy2(f, destino); n += 1
+-    print(f"Listo: {n} fotos copiadas a por-procesar/legado/.")
+-    print("Ahora puedes borrar la carpeta fotos/Legado y su linea en fotos/trimestres.txt,")
+-    print("y ejecutar herramientas/\"actualizar todo.bat\".")
+diff --git a/herramientas/parche_galeria.py b/herramientas/parche_galeria.py
+deleted file mode 100644
+index 0885b02..0000000
+--- a/herramientas/parche_galeria.py
++++ /dev/null
+@@ -1,20 +0,0 @@
+-"""Conecta galeria-plus (mosaico + indicador de fecha) a gallery.html. Se puede ejecutar muchas veces sin problema."""
+-from pathlib import Path
+-
+-ruta = Path(__file__).resolve().parent.parent / "gallery.html"
+-s = ruta.read_text(encoding="utf-8")
+-pares = [
+-    ('<link href="assets/css/jfz.css" rel="stylesheet">', '<link href="assets/css/galeria-plus.css" rel="stylesheet">'),
+-    ('<script src="assets/js/jfz.js"></script>', '<script src="assets/js/galeria-plus.js"></script>'),
+-]
+-hecho = 0
+-for ancla, nueva in pares:
+-    if nueva in s:
+-        continue
+-    if ancla not in s:
+-        print("AVISO: no encontre " + ancla + " en gallery.html. Avisale a Claude."); continue
+-    s = s.replace(ancla, ancla + "\n  " + nueva); hecho += 1
+-if hecho:
+-    ruta.write_text(s, encoding="utf-8"); print(f"Galeria conectada ({hecho} cambios).")
+-else:
+-    print("Galeria: ya estaba conectada.")
+diff --git a/herramientas/parche_webp.py b/herramientas/parche_webp.py
+deleted file mode 100644
+index e17f4bf..0000000
+--- a/herramientas/parche_webp.py
++++ /dev/null
+@@ -1,21 +0,0 @@
+-"""Permite que el sitio (assets/js/jfz.js) reconozca fotos .webp en el carrito. Se puede ejecutar muchas veces sin problema."""
+-import re
+-from pathlib import Path
+-
+-ruta = Path(__file__).resolve().parent.parent / "assets" / "js" / "jfz.js"
+-s = ruta.read_text(encoding="utf-8")
+-cambios = [
+-    (r'f.replace(/\.jpg$/i, "")', r'f.replace(/\.(jpe?g|png|webp)$/i, "")'),
+-    (r'/^IMG_(\d+)\.jpg$/i', r'/^IMG_(\d+)\.(?:jpe?g|png|webp)$/i'),
+-]
+-hecho = 0
+-for viejo, nuevo in cambios:
+-    if viejo in s:
+-        s = s.replace(viejo, nuevo); hecho += 1
+-    elif nuevo not in s:
+-        print("AVISO: no encontre un texto esperado en jfz.js (¿lo editaste?). Avisale a Claude.")
+-if hecho:
+-    ruta.write_text(s, encoding="utf-8")
+-    print(f"Parche WebP aplicado ({hecho} cambios).")
+-else:
+-    print("Parche WebP: ya estaba aplicado.")
+-- 
+2.39.5
+
