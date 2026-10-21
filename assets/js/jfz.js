@@ -48,7 +48,7 @@
       '<li><a href="herramientas/index.html"' + act("herramientas") + ">Herramientas</a></li>" +
       '<li><a href="contact.html"' + act("contacto") + ">Contacto</a></li>" +
       '</ul><i class="mobile-nav-toggle d-xl-none bi bi-list"></i></nav>' +
-      '<div class="jfz-actions"><a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fotos" title="Buscar fotos"><i class="bi bi-search"></i></a>' +
+      '<div class="jfz-actions">' +   /* (lupa de busqueda eliminada a pedido: ya no se muestra en el header) */
       '<a class="jfz-cart-link" href="carrito.html" aria-label="Carrito de compras"><i class="bi bi-cart3"></i><span class="jfz-badge" id="jfz-badge">0</span></a>' +
       '<button type="button" id="jfz-auth" class="jfz-auth"></button></div></div>';
     var f = $("#footer");
@@ -137,16 +137,22 @@
     renderCartPage();
   }
 
-  /* ---------- galería + buscador (etiquetas, fechas, trimestres) ---------- */
+  /* ---------- galería + filtros (fechas, trimestres, orden) ---------- */
   var EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
-  var ETIQUETAS_SITIO = [];
-  S.forEach(function (s) { (s.todas_etiquetas || []).forEach(function (e) { if (ETIQUETAS_SITIO.indexOf(e) < 0) ETIQUETAS_SITIO.push(e); }); });
-  ETIQUETAS_SITIO.sort();
+  /* A pedido del dueño del sitio:
+     - La barra de búsqueda quedó ELIMINADA del código (ya no existe en la galería).
+     - Las etiquetas "motos", "caras" y "cascos" quedaron BORRADAS: no se muestran
+       como botones de filtro ni como chips, aunque sigan escritas en fotos.js.
+     Filtros disponibles ahora: fecha desde/hasta, trimestres y orden por fecha.
+     El panel es plegable hacia abajo y se pega bajo el menú al hacer scroll (ver galeria-plus.css). */
+  var ETIQUETAS_PROHIBIDAS = ["motos", "caras", "cascos"];   // borradas de la vista (a pedido)
+  function etiquetaVisible(e) { return ETIQUETAS_PROHIBIDAS.indexOf(String(e).toLowerCase()) < 0; }
+  var ETIQUETAS_SITIO = [];   // vacio a proposito: los botones de etiquetas no se pintan
   function fechaDe(s, f) { return (s.fechas && s.fechas[f]) || ""; }
   function trimestreDe(fecha) { if (!fecha) return ""; var p = fecha.split("-"); return p[0] + "-T" + (Math.floor((+p[1] - 1) / 3) + 1); }
   function textoBusca(s, f) { var e = (s.etiquetas && s.etiquetas[f]) || []; return (base(f) + " " + s.titulo + " " + e.join(" ") + " " + fechaDe(s, f)).toLowerCase(); }
+
   function pasaFiltro(s, f) {
-    if (EST.q) { var t = textoBusca(s, f), pals = EST.q.toLowerCase().split(/\s+/); for (var i = 0; i < pals.length; i++) if (pals[i] && t.indexOf(pals[i]) < 0) return false; }
     if (EST.etiquetas.length) { var e = (s.etiquetas && s.etiquetas[f]) || []; for (var j = 0; j < EST.etiquetas.length; j++) if (e.indexOf(EST.etiquetas[j]) < 0) return false; }
     var d = fechaDe(s, f);
     if (EST.desde && (!d || d < EST.desde)) return false;
@@ -154,13 +160,12 @@
     if (EST.trim.length && EST.trim.indexOf(trimestreDe(d)) < 0) return false;
     return true;
   }
-  function hayFiltros() { return !!(EST.q || EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || EST.orden); }
+  function hayFiltros() { return !!(EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || EST.orden); }
   function chipHTML(txt, accion, val) { return '<span class="jfz-chip">' + esc(txt) + '<button type="button" data-acc="' + accion + '" data-v="' + esc(val || "") + '" aria-label="Quitar filtro"><i class="bi bi-x-lg"></i></button></span>'; }
   function renderChips() {
     var box = $("#jfz-filtros-activos"); if (!box) return;
     var c = [];
-    if (EST.q) c.push(chipHTML('busca: "' + EST.q + '"', "q"));
-    EST.etiquetas.forEach(function (e) { c.push(chipHTML("#" + e, "tag", e)); });
+    EST.etiquetas.forEach(function (e) { if (etiquetaVisible(e)) c.push(chipHTML("#" + e, "tag", e)); });
     if (EST.desde) c.push(chipHTML("desde " + EST.desde, "desde"));
     if (EST.hasta) c.push(chipHTML("hasta " + EST.hasta, "hasta"));
     EST.trim.forEach(function (t) { c.push(chipHTML(t, "trim", t)); });
@@ -174,19 +179,39 @@
     return Object.keys(trims).sort();
   }
   function buscadorHTML() {
-    if (!S.length) return "";
+    if (!S.length) return "";   // sin fotos no hay filtros que mostrar
     var listaTrims = trimsDelSitio();
-    return '<div class="jfz-buscador" id="jfz-buscador">' +
-      '<div class="jfz-buscar-linea">' +
-        '<div class="jfz-buscar-caja"><i class="bi bi-search"></i><input type="search" id="jfz-q" placeholder="Buscar por etiqueta o nombre (moto, casco, caras…)" value="' + esc(EST.q) + '" autocomplete="off"></div>' +
-        '<label>Desde <input type="date" id="jfz-desde" value="' + esc(EST.desde) + '" title="Fecha mínima"></label>' +
-        '<label>Hasta <input type="date" id="jfz-hasta" value="' + esc(EST.hasta) + '" title="Fecha máxima"></label>' +
-        '<select id="jfz-orden"><option value="">Ordenar…</option><option value="desc"' + (EST.orden === "desc" ? " selected" : "") + '>Fecha: nuevas primero</option><option value="asc"' + (EST.orden === "asc" ? " selected" : "") + '>Fecha: antiguas primero</option></select>' +
+    /* Panel de filtros: barra superior siempre visible + cuerpo plegable hacia abajo.
+       La barra de busqueda y las etiquetas motos/caras/cascos fueron eliminadas a pedido. */
+    return '<div class="jfz-buscador jfz-filtros" id="jfz-buscador">' +
+      '<button type="button" class="jfz-filtros-toggle" id="jfz-filtros-toggle" aria-expanded="false" aria-controls="jfz-filtros-cuerpo">' +
+        '<span class="jfz-ft-ico"><i class="bi bi-sliders"></i></span>' +
+        '<span class="jfz-ft-txt">Filtros</span>' +
+        '<span class="jfz-ft-resumen" id="jfz-ft-resumen"></span>' +
+        '<span class="jfz-ft-flecha"><i class="bi bi-chevron-down"></i></span>' +
+      '</button>' +
+      '<div class="jfz-filtros-cuerpo" id="jfz-filtros-cuerpo">' +
+        '<div class="jfz-filtro-grupo jfz-fg-fechas">' +
+          '<span class="jfz-fg-titulo"><i class="bi bi-calendar-range"></i> Fechas</span>' +
+          '<div class="jfz-fg-campos">' +
+            '<label>Desde <input type="date" id="jfz-desde" value="' + esc(EST.desde) + '" title="Fecha mínima"></label>' +
+            '<label>Hasta <input type="date" id="jfz-hasta" value="' + esc(EST.hasta) + '" title="Fecha máxima"></label>' +
+          '</div>' +
+        '</div>' +
+        (listaTrims.length ?
+        '<div class="jfz-filtro-grupo jfz-fg-trims">' +
+          '<span class="jfz-fg-titulo"><i class="bi bi-calendar3"></i> Trimestres</span>' +
+          '<div class="jfz-fg-campos jfz-trims">' + listaTrims.map(function (t) { return '<label class="jfz-trim' + (EST.trim.indexOf(t) >= 0 ? " on" : "") + '"><input type="checkbox" value="' + t + '"' + (EST.trim.indexOf(t) >= 0 ? " checked" : "") + '> ' + t + '</label>'; }).join("") + '</div>' +
+        '</div>' : "") +
+        '<div class="jfz-filtro-grupo jfz-fg-orden">' +
+          '<span class="jfz-fg-titulo"><i class="bi bi-sort-down"></i> Orden</span>' +
+          '<div class="jfz-fg-campos">' +
+            '<select id="jfz-orden"><option value="">Sin orden especial</option><option value="desc"' + (EST.orden === "desc" ? " selected" : "") + '>Fecha: nuevas primero</option><option value="asc"' + (EST.orden === "asc" ? " selected" : "") + '>Fecha: antiguas primero</option></select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="jfz-filtros-activos" id="jfz-filtros-activos" hidden></div>' +
+        '<div class="jfz-contador" id="jfz-contador"></div>' +
       '</div>' +
-      (ETIQUETAS_SITIO.length ? '<div class="jfz-tags">' + ETIQUETAS_SITIO.map(function (e) { return '<button type="button" class="jfz-tag' + (EST.etiquetas.indexOf(e) >= 0 ? " on" : "") + '" data-t="' + esc(e) + '">#' + esc(e) + "</button>"; }).join("") + "</div>" : "") +
-      (listaTrims.length ? '<div class="jfz-trims"><span>Trimestres:</span>' + listaTrims.map(function (t) { return '<label class="jfz-trim"><input type="checkbox" value="' + t + '"' + (EST.trim.indexOf(t) >= 0 ? " checked" : "") + "> " + t + "</label>"; }).join("") + "</div>" : "") +
-      '<div class="jfz-filtros-activos" id="jfz-filtros-activos" hidden></div>' +
-      '<div class="jfz-contador" id="jfz-contador"></div>' +
     "</div>";
   }
 
@@ -209,14 +234,13 @@
     var tabs = $("#jfz-tabs");
     tabs.innerHTML = '<button type="button" data-id="todos">Todos</button>' + S.map(function (s) { return '<button type="button" data-id="' + s.id + '">' + esc(s.titulo) + "</button>"; }).join("");
     box.innerHTML = buscadorHTML() + S.map(function (s) {
-      return '<section class="jfz-sec" data-id="' + s.id + '" id="sec-' + s.id + '"><h2 class="jfz-sec-title">' + esc(s.titulo) + ' <small>' + s.fotos.length + " fotos</small></h2>" +
+      return '<section class="jfz-sec" data-id="' + s.id + '" id="sec-' + s.id + '"><h2 class="jfz-sec-title jfz-scroll-espia">' + esc(s.titulo) + ' <small>' + s.fotos.length + " fotos</small></h2>" +
         '<div class="row gy-4"></div></section>';
     }).join("");
     wireBuscador(box);
     pintarGaleria();
     tabs.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) location.hash = b.getAttribute("data-id"); });
     window.addEventListener("hashchange", showTab);
-    if (location.hash === "#buscar") { setTimeout(function () { var bq = $("#jfz-q"); if (bq) { try { bq.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }
     showTab(); syncCart();
   }
   /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
@@ -235,6 +259,7 @@
       });
       total += visibles.length;
       var fila = secEl.querySelector(".row");
+      fila.classList.add("jfz-mosaico");   // conserva el mosaico del CSS sin romper la animación plegable
       fila.innerHTML = visibles.length ? visibles.slice(0, LIMITE_SECCION).map(function (f) { return cardHTML(f, s.id, s.carpeta); }).join("") :
         (hayFiltros() ? "" : '<p class="jfz-empty">Próximamente.</p>');
       secEl.hidden = !(visibles.length || !hayFiltros());
@@ -244,14 +269,48 @@
     var cont = $("#jfz-contador");
     if (cont) cont.textContent = hayFiltros() ? (total ? total + (total === 1 ? " foto encontrada" : " fotos encontradas") : "Sin resultados con esos filtros") : "";
     renderChips();
+    actualizarResumenFiltros();
+    /* si el panel esta abierto, se vuelve a medir para que la animacion plegable no corte el contenido */
+    var cuerpoF = $("#jfz-filtros-cuerpo"), panelF = $("#jfz-buscador");
+    if (cuerpoF && panelF && panelF.classList.contains("abierto")) cuerpoF.style.maxHeight = cuerpoF.scrollHeight + "px";
     wireAdd(box_galeria());
     initLightbox(".jfz-sec:not([hidden]) .jfz-lightbox");
+    try { window.dispatchEvent(new Event("jfz-gallery-painted")); } catch (e) {}
   }
   function box_galeria() { return $("#jfz-galeria"); }
+
+  /* Resumen corto que se ve en la barra de filtros cuando el panel esta plegado */
+  function actualizarResumenFiltros() {
+    var r = $("#jfz-ft-resumen"); if (!r) return;
+    var partes = [];
+    if (EST.desde || EST.hasta) partes.push((EST.desde || "…") + " → " + (EST.hasta || "…"));
+    if (EST.trim.length) partes.push(EST.trim.length === 1 ? EST.trim[0] : EST.trim.length + " trimestres");
+    if (EST.orden) partes.push(EST.orden === "asc" ? "↑ antiguas" : "↓ nuevas");
+    r.textContent = partes.length ? partes.join(" · ") : "";
+    r.hidden = !partes.length;
+    var panel = $("#jfz-buscador"); if (panel) panel.classList.toggle("tiene-filtros", partes.length > 0);
+  }
+
+  /* Plegable hacia abajo: la barra "Filtros" siempre visible; el cuerpo sube/baja con animación */
+  function toggleFiltros(forzar) {
+    var panel = $("#jfz-buscador"), cuerpo = $("#jfz-filtros-cuerpo"), tog = $("#jfz-filtros-toggle");
+    if (!panel || !cuerpo || !tog) return;
+    var abierto = typeof forzar === "boolean" ? forzar : !panel.classList.contains("abierto");
+    tog.setAttribute("aria-expanded", abierto ? "true" : "false");
+    if (abierto) {
+      panel.classList.add("abierto");
+      cuerpo.style.maxHeight = cuerpo.scrollHeight + "px";
+    } else {
+      cuerpo.style.maxHeight = cuerpo.scrollHeight + "px";   // fuerza el alto actual para poder animar hacia abajo
+      void cuerpo.offsetHeight;                              // reflow para que el navegador registre el alto
+      panel.classList.remove("abierto");
+      cuerpo.style.maxHeight = "0px";
+    }
+  }
   function wireBuscador(root) {
-    var q = $("#jfz-q", root), d1 = $("#jfz-desde", root), d2 = $("#jfz-hasta", root), o = $("#jfz-orden", root);
-    var timerQ;
-    if (q) q.addEventListener("input", function () { clearTimeout(timerQ); timerQ = setTimeout(function () { EST.q = q.value.trim(); pintarGaleria(); }, 250); });
+    var d1 = $("#jfz-desde", root), d2 = $("#jfz-hasta", root), o = $("#jfz-orden", root);
+    var tog = $("#jfz-filtros-toggle", root);
+    if (tog) tog.addEventListener("click", function () { toggleFiltros(); });
     if (d1) d1.addEventListener("change", function () { EST.desde = d1.value; pintarGaleria(); });
     if (d2) d2.addEventListener("change", function () { EST.hasta = d2.value; pintarGaleria(); });
     if (o) o.addEventListener("change", function () { EST.orden = o.value; pintarGaleria(); });
@@ -264,17 +323,17 @@
     $$("input[type=checkbox]", $(".jfz-trims", root) || root).forEach(function (cb) { cb.addEventListener("change", function () {
       var t = cb.value, i = EST.trim.indexOf(t);
       i >= 0 ? EST.trim.splice(i, 1) : EST.trim.push(t);
+      cb.closest(".jfz-trim").classList.toggle("on", i < 0);
       pintarGaleria();
     }); });
     var chips = $("#jfz-filtros-activos", root);
     if (chips) chips.addEventListener("click", function (e) {
       var b = e.target.closest("[data-acc]"); if (!b) return;
       var acc = b.getAttribute("data-acc"), v = b.getAttribute("data-v");
-      if (acc === "q") { EST.q = ""; var qi = $("#jfz-q"); if (qi) qi.value = ""; }
       if (acc === "tag") { EST.etiquetas = EST.etiquetas.filter(function (x) { return x !== v; }); var tb = $('.jfz-tag[data-t="' + v + '"]'); if (tb) tb.classList.remove("on"); }
-      if (acc === "desde") { EST.desde = ""; d1.value = ""; }
-      if (acc === "hasta") { EST.hasta = ""; d2.value = ""; }
-      if (acc === "trim") { EST.trim = EST.trim.filter(function (x) { return x !== v; }); var cb2 = $('.jfz-trims input[value="' + v + '"]'); if (cb2) cb2.checked = false; }
+      if (acc === "desde") { EST.desde = ""; if (d1) d1.value = ""; }
+      if (acc === "hasta") { EST.hasta = ""; if (d2) d2.value = ""; }
+      if (acc === "trim") { EST.trim = EST.trim.filter(function (x) { return x !== v; }); var cb2 = $('.jfz-trims input[value="' + v + '"]'); if (cb2) { cb2.checked = false; if (cb2.closest(".jfz-trim")) cb2.closest(".jfz-trim").classList.remove("on"); } }
       if (acc === "orden") { EST.orden = ""; if (o) o.value = ""; }
       if (acc === "limpiar") { EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" }; renderGallery(); return; }
       pintarGaleria();

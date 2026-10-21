@@ -115,9 +115,9 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
             <div class="col-md-6 col-xl-4">
               <div class="jfz-serv">
                 <i class="bi bi-search"></i>
-                <h3>Buscar fotos</h3>
-                <p>El buscador con filtros del sitio: #moto / #casco / #caras, fechas, trimestres y orden.</p>
-                <a class="jfz-svc-add" href="../gallery.html#buscar"><i class="bi bi-arrow-right-circle"></i> Abrir buscador</a>
+                <h3>Buscar fotos (oculto)</h3>
+                <p>El buscador con filtros y las etiquetas #moto / #casco / #caras quedaron ocultos a pedido del dueño.</p>
+                <a class="jfz-svc-add" href="../gallery.html"><i class="bi bi-arrow-right-circle"></i> Ir a la galería</a>
               </div>
             </div>
             <div class="col-md-6 col-xl-4">
@@ -210,29 +210,23 @@ def main():
     else:
         print("herramientas/index.html: ya existe (si quieres regenerarla, bórrala y repite).")
 
-    # --- 2. Header: "Herramientas" en el menú + lupa junto al carrito ---
+    # --- 2. Header: "Herramientas" en el menú (la lupa de búsqueda se QUITÓ a pedido del dueño) ---
     jfz = RAIZ / "assets" / "js" / "jfz.js"
     nav_viejo = '\'<li><a href="contact.html"\' + act("contacto") + ">Contacto</a></li>"'
     nav_nuevo = '\'<li><a href="herramientas/index.html"\' + act("herramientas") + ">Herramientas</a></li>" +\n      ' + nav_viejo
     _reemplazo(jfz, nav_viejo, nav_nuevo, "Menú: enlace «Herramientas» agregado", hechos)
 
-    # la lupa queda como PRIMER botón del bloque .jfz-actions (orden: lupa, carrito, sesión)
+    # la lupa ya NO va en el header: si estaba puesta, se quita (barra de búsqueda eliminada a pedido)
     s = jfz.read_text(encoding="utf-8")
-    acciones_vacia = "'<div class=\"jfz-actions\">' +\n      '<a class=\"jfz-cart-link\""
-    acciones_con_lupa = "'<div class=\"jfz-actions\">" + LUPA + "' +\n      '<a class=\"jfz-cart-link\""
-    if "jfz-actions\">" + LUPA in s:
-        pass
-    elif acciones_vacia in s:
-        jfz.write_text(s.replace(acciones_vacia, acciones_con_lupa, 1), encoding="utf-8")
-        hechos.append("Header: lupa de búsqueda metida en el bloque de acciones (junto al carrito)")
-    else:
-        print('AVISO (lupa): no encontré el bloque "jfz-actions" en jfz.js. Avísale a Claude.')
+    if LUPA in s:
+        jfz.write_text(s.replace(LUPA, "", 1), encoding="utf-8")
+        hechos.append("Header: lupa de búsqueda quitada (el buscador quedó oculto a pedido)")
 
-    # --- 3. index.html: el botón principal aterriza en el buscador ---
+    # --- 3. index.html: el botón principal ya NO apunta al buscador (buscador oculto a pedido) ---
     _reemplazo(RAIZ / "index.html",
-               '<a href="gallery.html" class="btn-get-started">Ver galería completa</a>',
                '<a href="gallery.html#buscar" class="btn-get-started">Ver galería completa</a>',
-               "index.html: «Ver galería completa» apunta al buscador (#buscar)", hechos)
+               '<a href="gallery.html" class="btn-get-started">Ver galería completa</a>',
+               "index.html: «Ver galería completa» vuelve a apuntar a la galeria normal", hechos)
 
     # --- 4. gallery.html: enlace a la página de herramientas bajo las pestañas ---
     _reemplazo(RAIZ / "gallery.html",
