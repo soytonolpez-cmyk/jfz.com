@@ -1,4 +1,7 @@
-/* Mejoras de la galería: mosaico de tamaños variados e indicador de fecha al hacer scroll. No modifica jfz.js. */
+/* Mejoras de la galería: mosaico de tamaños variados, indicador de fecha al hacer scroll
+   y comportamiento "pegajoso" del panel de filtros (se pega bajo el menú al desplazarse y
+   vuelve a su lugar al subir). La barra de búsqueda y las etiquetas motos/caras/cascos
+   fueron BORRADAS del código a pedido del dueño del sitio. */
 (function () {
   var S = window.JFZ_FOTOS || [];
   var MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -7,18 +10,52 @@
   var barra = document.getElementById("jfz-tabs");
   if (barra && S.length < 2) barra.style.display = "none";   // con una sola sección no hacen falta pestañas
 
+  /* ---------- alta real del menú -> --jfz-header-h (para que los filtros se peguen justo debajo) ---------- */
+  function medirHeader() {
+    var h = document.getElementById("header");
+    if (!h) return;
+    document.documentElement.style.setProperty("--jfz-header-h", Math.round(h.getBoundingClientRect().height) + "px");
+  }
+  medirHeader();
+  window.addEventListener("resize", medirHeader);
+  if (typeof ResizeObserver !== "undefined") { try { new ResizeObserver(medirHeader).observe(document.getElementById("header")); } catch (e) {} }
+
+  /* ---------- panel de filtros pegajoso: aplica/quita el position cuando toca ---------- */
+  var panel = document.getElementById("jfz-buscador");
+  if (panel && "IntersectionObserver" in window) {
+    var centinela = document.createElement("div");
+    centinela.className = "jfz-centinela";
+    panel.parentNode.insertBefore(centinela, panel);
+    function vigilar() {
+      var alto = panel.offsetHeight || 0;
+      var off = Math.round(alto * 0.35);          // umbral dentro del propio panel
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          panel.classList.toggle("jfz-pegado", !en.isIntersecting);   // true = está pegado a la pantalla
+        });
+      }, { rootMargin: "-" + off + "px 0px 0px 0px", threshold: 0 });
+      obs.observe(centinela);
+      panel._obs = obs;
+    }
+    vigilar();
+    window.addEventListener("resize", function () { if (panel._obs) { try { panel._obs.disconnect(); } catch (e) {} } vigilar(); });
+  }
+
   function mosaico() {
-    if (box.getAttribute("data-plus") || !box.querySelector(".jfz-card")) return;
-    box.setAttribute("data-plus", "1");
+    if (!box.querySelector(".jfz-card")) return;
     Array.prototype.forEach.call(box.querySelectorAll(".row"), function (row) {
       row.classList.add("jfz-mosaico");
-      Array.prototype.forEach.call(row.children, function (c, i) {
+      var cols = row.children;
+      for (var i = 0; i < cols.length; i++) cols[i].classList.remove("jfz-grande", "jfz-ancho");
+      Array.prototype.forEach.call(cols, function (c, i) {
         if (i % 9 === 0) c.classList.add("jfz-grande"); else if (i % 9 === 5) c.classList.add("jfz-ancho");
       });
     });
   }
-  mosaico();
-  if (!box.getAttribute("data-plus")) new MutationObserver(mosaico).observe(box, { childList: true });
+  /* se aplica tras cada pintado de la galería (sin MutationObserver para no pelear con el DOM) */
+  window.addEventListener("jfz-gallery-painted", mosaico);
+  setTimeout(mosaico, 300);
+  setInterval(function () { if (!document.querySelector(".jfz-mosaico")) mosaico(); }, 1200);
 
   /* ----- indicador de fecha ----- */
   var chip = document.createElement("div"); chip.className = "jfz-fecha-chip"; document.body.appendChild(chip);

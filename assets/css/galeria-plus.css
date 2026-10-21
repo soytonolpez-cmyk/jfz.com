@@ -1,4 +1,14 @@
-/* Galería con fotos de distintos tamaños + indicador flotante de fecha */
+/* ==========================================================================
+   Galería JuanetoFZ — mosaico, indicador de fecha y PANEL DE FILTROS mejorado
+   (plegable hacia abajo, se pega bajo el menú al hacer scroll y responsive).
+   Nota: la barra de búsqueda y las etiquetas "motos", "caras" y "cascos"
+   fueron BORRADAS del código a pedido del dueño del sitio.
+   ========================================================================== */
+
+/* ---------- alta del menú para calcular dónde se pegan los filtros ---------- */
+:root { --jfz-header-h: 86px; }
+
+/* ================= mosaico de fotos + indicador de fecha ================= */
 .jfz-mosaico { display: grid !important; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 190px; grid-auto-flow: dense; gap: 10px !important; margin: 0 !important; }
 .jfz-mosaico > [class*="col-"] { width: auto !important; max-width: none !important; flex: none !important; padding: 0 !important; margin: 0 !important; }
 @media (min-width: 768px) { .jfz-mosaico { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 240px; } }
@@ -7,5 +17,107 @@
 .jfz-mosaico .jfz-ancho { grid-column: span 2; }
 .jfz-mosaico .jfz-card { height: 100%; display: flex; flex-direction: column; }
 .jfz-mosaico .jfz-card > a { flex: 1; min-height: 0; aspect-ratio: auto; }
-.jfz-fecha-chip { position: fixed; right: 16px; top: 90px; z-index: 1030; padding: 8px 14px; border-radius: 999px; background: rgba(20,20,20,.92); color: #fff; border: 1px solid var(--accent-color, #fff); font: 500 14px var(--nav-font, sans-serif); letter-spacing: .04em; pointer-events: none; opacity: 0; transform: translateX(8px); transition: opacity .25s, transform .25s; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.jfz-fecha-chip { position: fixed; right: 16px; top: 90px; z-index: 1030; padding: 8px 14px; border-radius: 999px; background: rgba(20,20,20,.92); color: #fff; border: 1px solid var(--accent-color, #2f5bff); font: 500 14px var(--nav-font, sans-serif); letter-spacing: .04em; pointer-events: none; opacity: 0; transform: translateX(8px); transition: opacity .25s, transform .25s; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 .jfz-fecha-chip.on { opacity: 1; transform: none; }
+
+/* ================= panel de filtros (barra + cuerpo plegable) ============= */
+/* main.css pone overflow:clip en las secciones, lo que rompería el position:sticky;
+   en la sección de la galería se permite visible para que los filtros puedan pegarse. */
+#gallery.section { overflow: visible; }
+
+.jfz-filtros {
+  position: sticky;                       /* se pega al desplazarse… */
+  top: var(--jfz-header-h);               /* justo debajo del menú superior */
+  z-index: 990;                           /* por encima de las fotos, por debajo del lightbox */
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 6px 0 10px;
+  margin: 0 0 18px;
+  gap: 0;
+  display: block;
+}
+
+/* —— barra superior: siempre visible, es el botón que pliega/expanden hacia abajo —— */
+.jfz-filtros-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: #ffffff; color: #1c1c1e; cursor: pointer; text-align: left;
+  border: 1px solid rgba(0,0,0,.10); border-radius: 14px;
+  padding: 11px 16px; font: 600 15px var(--nav-font, "Oswald", sans-serif);
+  letter-spacing: .05em; text-transform: uppercase;
+  box-shadow: 0 3px 12px rgba(0,0,0,.28);
+  transition: border-color .2s, box-shadow .2s, border-radius .2s;
+}
+.jfz-filtros-toggle:hover { border-color: var(--accent-color); }
+.jfz-filtros-toggle:focus-visible { outline: 3px solid rgba(47,91,255,.35); outline-offset: 2px; }
+.jfz-ft-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: var(--accent-color); color: #fff; font-size: 15px; flex: 0 0 auto; }
+.jfz-ft-txt { flex: 0 0 auto; }
+.jfz-ft-resumen {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 500 12px "Roboto", sans-serif; letter-spacing: .02em; text-transform: none;
+  color: #fff; background: var(--accent-color); border-radius: 999px; padding: 3px 12px; width: fit-content;
+}
+.jfz-ft-resumen[hidden] { display: none; }
+.jfz-filtros:not(.abierto) .jfz-filtros-toggle { border-radius: 14px; }
+.jfz-filtros.abierto .jfz-filtros-toggle { border-radius: 14px 14px 0 0; border-bottom-color: transparent; }
+.jfz-ft-flecha { margin-left: auto; display: inline-flex; transition: transform .3s ease; color: #666; }
+.jfz-filtros.abierto .jfz-ft-flecha { transform: rotate(180deg); }
+
+/* —— cuerpo plegable: baja/sube animado —— */
+.jfz-filtros-cuerpo {
+  max-height: 0; overflow: hidden;
+  background: #ffffff; color: #1c1c1e;
+  border: 1px solid rgba(0,0,0,.10); border-top: none;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.30);
+  transition: max-height .32s ease;
+  padding: 0 18px;                       /* vertical lo controla la animación */
+}
+.jfz-filtros.abierto .jfz-filtros-cuerpo { padding: 16px 18px 14px; }
+.jfz-filtros:not(.abierto) .jfz-filtros-cuerpo { border-color: transparent; box-shadow: none; }
+
+/* —— orden estético de los grupos de filtros —— */
+.jfz-filtro-grupo { padding: 10px 0; border-bottom: 1px dashed #e3e6ea; }
+.jfz-filtro-grupo:last-of-type { border-bottom: none; }
+.jfz-fg-titulo { display: flex; align-items: center; gap: 8px; font: 600 12px var(--nav-font, "Oswald", sans-serif); letter-spacing: .12em; text-transform: uppercase; color: #7a828c; margin-bottom: 10px; }
+.jfz-fg-titulo i { color: var(--accent-color); font-size: 15px; }
+.jfz-fg-campos { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* campos sueltos */
+.jfz-fg-fechas label { display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--nav-font, "Oswald", sans-serif); letter-spacing: .04em; text-transform: uppercase; color: #555; }
+.jfz-fg-fechas input[type="date"] { border: 2px solid #e0e3e8; border-radius: 10px; padding: 8px 10px; font: 400 14px "Roboto", sans-serif; background: #fff; color: #222; transition: border-color .15s, box-shadow .15s; }
+.jfz-fg-fechas input[type="date"]:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(47,91,255,.15); }
+.jfz-fg-orden select { border: 2px solid #e0e3e8; border-radius: 10px; padding: 9px 12px; font: 500 14px "Roboto", sans-serif; background: #fff; color: #222; cursor: pointer; min-width: 210px; transition: border-color .15s, box-shadow .15s; }
+.jfz-fg-orden select:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(47,91,255,.15); }
+
+/* botones tipo píldora para los trimestres */
+.jfz-trims { gap: 8px; }
+.jfz-trim { display: inline-flex; align-items: center; gap: 7px; font: 500 14px "Roboto", sans-serif; color: #222; cursor: pointer; border: 1.5px solid #d7dbe0; border-radius: 999px; padding: 7px 14px; background: #f4f6f8; transition: all .15s; user-select: none; }
+.jfz-trim:hover { border-color: var(--accent-color); background: #eef4ff; }
+.jfz-trim.on { background: var(--accent-color); border-color: var(--accent-color); color: #fff; font-weight: 600; }
+.jfz-trim input { accent-color: var(--accent-color); cursor: pointer; margin: 0; }
+.jfz-trim.on input { accent-color: #fff; }
+
+/* chips de filtros activos + contador */
+.jfz-filtros-activos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.jfz-contador { font: 600 13px var(--nav-font, "Oswald", sans-serif); letter-spacing: .04em; color: var(--accent-color); margin-top: 8px; }
+
+/* sombra compacta cuando el panel está pegado a la pantalla */
+.jfz-filtros.jfz-pegado .jfz-filtros-toggle { box-shadow: 0 8px 22px rgba(0,0,0,.45); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 767.98px) {
+  .jfz-filtros { top: calc(var(--jfz-header-h) - 10px); padding: 4px 0 8px; margin-bottom: 14px; }
+  .jfz-filtros-toggle { padding: 10px 12px; font-size: 14px; gap: 8px; }
+  .jfz-ft-ico { width: 26px; height: 26px; }
+  .jfz-filtros-cuerpo { padding-left: 14px; padding-right: 14px; }
+  .jfz-fg-campos { flex-direction: column; align-items: stretch; }
+  .jfz-fg-fechas label { justify-content: space-between; }
+  .jfz-fg-fechas input[type="date"] { flex: 1; min-width: 0; }
+  .jfz-fg-orden select { width: 100%; min-width: 0; }
+  .jfz-trims { flex-direction: row; flex-wrap: wrap; }        /* los trimestres siguen en fila de píldoras */
+  .jfz-ft-resumen { font-size: 11px; max-width: 46%; }
+}
+@media (max-width: 400px) {
+  .jfz-ft-txt { display: none; }                              /* solo ícono + resumen + flecha */
+}

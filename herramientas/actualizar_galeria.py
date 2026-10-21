@@ -130,6 +130,14 @@ def etiquetas_de_seccion(fotos, rutas, reglas):
     return {f: v for f, v in resultado.items() if v}
 
 
+ETIQUETAS_PROHIBIDAS = {"moto", "motos", "casco", "cascos", "cara", "caras"}   # no se muestran en el sitio (a pedido del dueño)
+
+
+def limpiar_etiquetas(ets):
+    """Quita de las etiquetas de cada foto las palabras prohibidas (moto/casco/caras...)."""
+    return {f: [e for e in v if e not in ETIQUETAS_PROHIBIDAS] for f, v in ets.items()}
+
+
 reglas = leer_fechas_manuales()
 etiquetas_reglas = leer_etiquetas()
 secciones = []
@@ -147,7 +155,8 @@ for linea in (FOTOS / "trimestres.txt").read_text(encoding="utf-8").splitlines()
     fechas = fechas_de_seccion(carpeta, fotos, ruta, reglas)
     if fechas:
         seccion["fechas"] = fechas
-    ets = etiquetas_de_seccion(fotos, ruta, etiquetas_reglas)
+    ets = limpiar_etiquetas(etiquetas_de_seccion(fotos, ruta, etiquetas_reglas))
+    ets = {f: v for f, v in ets.items() if v}   # descartar fotos que se quedaron sin etiquetas
     if ets:
         seccion["etiquetas"] = ets
         seccion["todas_etiquetas"] = sorted({e for v in ets.values() for e in v})
