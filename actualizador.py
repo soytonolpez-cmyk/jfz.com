@@ -950,18 +950,21 @@ def _nombre_webp(stem):
     return stem.strip().replace(" ", "-").lower()
 
 
+def _nombre_foto(stem):
+    """Nombre REAL del .webp en la galeria: el stem original EXACTO (conserva
+    mayusculas/minisculas), solo con los espacios cambiados por guiones."""
+    return stem.strip().replace(" ", "-")
+
+
 def _nombre_unico(stem):
-    """fotos/galeria/<stem>.webp; si ya existe otro archivo distinto, agrega
-    _1, _2... detras (solo pasa si dos fotos diferentes comparten el nombre)."""
-    ideal = GALERIA / f"{_nombre_webp(stem)}.webp"
+    base = _nombre_foto(stem)
+    ideal = GALERIA / f"{base}.webp"
     if not ideal.exists():
         return ideal
-    # si "existe" es en realidad el MISMO archivo (mayusculas distintas en
-    # Windows), lo reutilizamos: no duplicamos ni agregamos sufijos.
+    canon = _nombre_webp(stem)          # solo para COMPARAR, no para nombrar
     for p in GALERIA.iterdir():
-        if p.stem.lower() == _nombre_webp(stem):
+        if _nombre_webp(p.stem) == canon:
             return p
-    base = _nombre_webp(stem)
     i = 1
     destino = GALERIA / f"{base}_{i}.webp"
     while destino.exists():
