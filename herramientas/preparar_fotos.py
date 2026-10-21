@@ -1,14 +1,16 @@
-"""Convierte tus fotos terminadas a WebP (liviano), con marca de agua, y las deja en fotos/<carpeta>/.
+"""Convierte tus fotos terminadas a WebP (liviano), con marca de agua, y las deja en fotos/galeria/.
 
-Como se usa (lo normal es hacerlo con el archivo "actualizar todo.bat", doble clic):
-  1. Mete tus fotos DENTRO de "por-procesar", en una carpeta por trimestre.
+Flujo normal (doble clic en herramientas/actualizacion_definitiva.bat, que llama a este script):
+  1. Mete tus fotos DENTRO de "por-procesar", en una o varias carpetas.
      Ejemplos:  por-procesar/t4/IMG_6001.jpg   o   por-procesar/t4/IMG_6001.CR2
-     Se aceptan JPG/PNG/TIFF y RAW de camara profesional (.CR2 .CR3 .NEF .ARW .RAF .DNG .RW2 .ORF .PEF).
+     Tambien sirve por-procesar/foto-suelta.jpg (una carpeta virtual "_sueltas").
+     Se aceptan JPG/PNG/TIFF/HEIC y RAW de camara profesional (.CR2 .CR3 .NEF .ARW .RAF .DNG .RW2 .ORF .PEF).
      Los RAW se revelan aqui mismo (con la fecha EXIF original) -> JPG temporal -> WebP.
-  2. Ejecuta este programa. Crea  fotos/t4/IMG_6001.webp
+  2. Cada foto sale a  fotos/galeria/IMG_6001.webp  (la unica carpeta que muestra la galeria
+     del sitio; si ya existe una foto con ese nombre se agrega _1, _2... detras).
+     Las fechas EXIF se registran solas en fotos/fechas.txt para que la galeria las muestre.
+  3. El boton unico regenera assets/js/fotos.js al final: no hay que hacer nada mas.
 La carpeta "por-procesar" NO se sube a GitHub (asi tus originales quedan solo en tu PC).
-Si usaste antes la carpeta fotos/Legado: pasa su contenido a por-procesar (o ejecuta
-herramientas/migrar_legado.py) y borra la linea "Legado | ..." de fotos/trimestres.txt.
 """
 from pathlib import Path
 from PIL import Image, ImageOps
@@ -225,11 +227,35 @@ def registrar_fecha(carpeta, nombre_sin_ext, fecha):
         f.write(linea)
 
 
+DESTINO_GALERIA = SALIDA / "galeria"   # unica carpeta que muestra la galeria del sitio
+
+
+def _nombre_unico(stem):
+    """fotos/galeria/<stem>.webp; si ya existe uno, agrega _1, _2... detras."""
+    destino = DESTINO_GALERIA / f"{stem}.webp"
+    i = 1
+    while destino.exists():
+        destino = DESTINO_GALERIA / f"{stem}_{i}.webp"
+        i += 1
+    return destino
+
+
 def main():
     ENTRADA.mkdir(exist_ok=True)
-    carpetas = sorted(p for p in ENTRADA.iterdir() if p.is_dir())
-    if not carpetas:
-        print("No hay carpetas dentro de 'por-procesar'. Crea una (por ejemplo t4) y mete ahi tus fotos.")
+    # Colectar TODAS las fotos de por-procesar/ (recursivo), sin exigir subcarpetas.
+    grupos = {}   # clave de subcarpeta -> [archivos]
+    for p in sorted(ENTRADA.rglob("*")):
+        if not p.is_file():
+            continue
+        ext = p.suffix.lower()
+        if ext not in EXTENSIONES and ext not in EXT_RAW:
+            continue
+        rel = p.relative_to(ENTRADA)
+        clave = rel.parts[0] if len(rel.parts) > 1 else "_sueltas"
+        grupos.setdefault(clave, []).append(p)
+    if not grupos:
+        print("No hay fotos dentro de 'por-procesar'. Mete ahi tus fotos terminadas")
+        print("(sueltas o en carpetas, ej. por-procesar/t4/) y vuelve a ejecutar.")
         return 1
     marca = None
     if MARCA.exists():
@@ -243,29 +269,30 @@ def main():
     else:
         print("!! No encontre herramientas/marca_agua.png: las fotos saldrian SIN marca de agua.")
         print("!! Tu repositorio es publico: cualquiera podria descargarlas limpias.")
-        if input("Escribe SI para continuar de todos modos, o pulsa Enter para cancelar: ").strip().upper() != "SI":
+        try:
+            resp = input("Escribe SI para continuar de todos modos, o pulsa Enter para cancelar: ").strip().upper()
+        except EOFError:
+            resp = ""
+        if resp != "SI":
             print("Cancelado. Pon tu marca de agua (PNG transparente) en herramientas/marca_agua.png y repite.")
             return 1
-    registradas = (SALIDA / "trimestres.txt").read_text(encoding="utf-8")
+    DESTINO_GALERIA.mkdir(parents=True, exist_ok=True)
     total = 0
-    for carpeta in carpetas:
-        archivos = sorted(p for p in carpeta.iterdir() if p.suffix.lower() in EXTENSIONES | EXT_RAW)
-        destino_dir = SALIDA / carpeta.name
-        destino_dir.mkdir(exist_ok=True)
+    for clave in sorted(grupos):
+        archivos = grupos[clave]
         nuevas = 0
         temporales = []
         fallan_raw = []
         for f in archivos:
-            destino = destino_dir / (f.stem + ".webp")
             origen = f
-            if destino.exists():
-                continue                          # ya estaba hecha: no se repite
+            if any((DESTINO_GALERIA / f.stem).with_suffix(e).exists() for e in (".webp", ".jpg", ".jpeg", ".png")):
+                continue                          # esa foto ya esta en la galeria: no se repite
             try:
                 if f.suffix.lower() in EXT_RAW:   # RAW -> JPG temporal (primero JPG, luego WebP)
                     if rawpy is None:
                         print(f"  AVISO: {f.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
                         continue
-                    tmp = RAIZ / "herramientas" / "__tmp__" / f"{carpeta.name}_{f.stem}.jpg"
+                    tmp = RAIZ / "herramientas" / "__tmp__" / f"{clave}_{f.stem}.jpg"
                     tmp.parent.mkdir(exist_ok=True)
                     fecha_raw = revelar_raw(f, tmp)
                     if not tmp.exists():
@@ -274,10 +301,24 @@ def main():
                     origen = tmp
                     temporales.append(tmp)
                     if fecha_raw:
-                        registrar_fecha(carpeta.name, f.stem, fecha_raw)
+                        registrar_fecha("galeria", f.stem, fecha_raw)
+                else:
+                    # Las JPG/PNG/HEIC tambien merecen su fecha registrada (si traen EXIF).
+                    try:
+                        with Image.open(origen) as im:
+                            ex = im.getexif()
+                            sub = ex.get_ifd(0x8769)
+                            for tag in (36867, 36868, 306):
+                                v = _normalizar_fecha(sub.get(tag) or ex.get(tag))
+                                if v:
+                                    registrar_fecha("galeria", f.stem, v)
+                                    break
+                    except Exception:
+                        pass
+                destino = _nombre_unico(f.stem)
                 convertir(origen, destino, marca)
                 nuevas += 1
-                print(f"  OK  {carpeta.name}/{destino.name}  ({destino.stat().st_size // 1024} KB)")
+                print(f"  OK  {f.name} -> fotos/galeria/{destino.name}  ({destino.stat().st_size // 1024} KB)")
             except Exception as e:
                 print(f"  ERROR con {f.name}: {e}")
         for tmp in temporales:
@@ -287,15 +328,13 @@ def main():
                 pass
         total += nuevas
         skip = len(archivos) - nuevas - len(fallan_raw)
-        print(f"{carpeta.name}: {nuevas} fotos nuevas ({skip} ya existian).")
+        print(f"{clave}: {nuevas} fotos nuevas ({skip} ya existian).")
         if fallan_raw:
             print(f"  ATENCION: no se pudieron revelar {len(fallan_raw)} RAW: {', '.join(fallan_raw[:6])}")
             print("               Instala/actualiza la libreria (py -m pip install -U rawpy) o exporta esos")
             print("               archivos a JPG desde tu editor y vuelve a ejecutar (no se pierden).")
-        if carpeta.name not in [l.split("|")[0].strip() for l in registradas.splitlines() if "|" in l]:
-            print(f"  AVISO: agrega esta linea en fotos/trimestres.txt para que se vea en el sitio:")
-            print(f"         {carpeta.name} | Titulo que quieras (ej. 4to Trimestre 2026)")
-    print(f"Listo: {total} fotos convertidas.")
+    print(f"Listo: {total} fotos convertidas a fotos/galeria/ (con marca de agua).")
+    print("Ahora el boton unico regenera la galeria; tus originales siguen en por-procesar/ para el pedido.")
     return 0
 
 

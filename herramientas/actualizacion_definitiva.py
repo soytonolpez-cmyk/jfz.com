@@ -1,23 +1,22 @@
-"""actualizacion_definitiva.py — LA ÚNICA HERRAMIENTA del sitio (borrador).
+"""actualizacion_definitiva.py — LA ÚNICA HERRAMIENTA del sitio.
 
 Consolida en un solo archivo todo lo que antes estaba repartido en:
     preparar_y_actualizar.bat, preparar_fotos.py, pedido.ps1 (parche webp),
     parche_webp.py, parche_galeria.py, migrar_legado.py, marca_agua.png,
-    jubilar_legado.py, index.html y consolidar_sitio.py.
+    jubilar_legado.py, index.html, consolidar_sitio.py y mover_fotos_a_galeria.py.
 
 Qué hace al ejecutarla (en este orden):
-  A) JUBILA "Legado" y "Prueba Trimestre" de la galeria:
+  A) ORDENA la carpeta fotos/: cualquier foto suelta (o dentro de subcarpetas
+     como t4/) se mueve a la carpeta general fotos/galeria/ — la unica seccion
+     que existe ahora en el sitio. Idempotente: si ya esta todo ordenado, no toca nada.
+  A2) JUBILA "Legado" y "Prueba Trimestre" de la galeria:
        - mueve TODAS las fotos que esten todavia en las carpetas jubiladas
-         (fotos/Legado* y fotos/*prueba*/*trimestre*) hacia la carpeta general
-         de la galeria: fotos/galeria/ (conserva los nombres; si uno ya existe,
-         agrega _1, _2... detras). Las carpetas jubiladas quedan vacias.
+         (fotos/Legado* y fotos/*prueba*/*trimestre*) hacia fotos/galeria/.
        - comenta las lineas de esas secciones en fotos/trimestres.txt,
          fotos/fechas.txt y fotos/etiquetas.txt (los datos quedan guardados;
          se pueden devolver con el argumento --revertir).
        - si quedan las fotos de prueba IMG_9001 / IMG_9002 sin usar, quita
          sus lineas de fotos/etiquetas.txt (las demas etiquetas se conservan).
-       - regenera assets/js/fotos.js: las dos secciones dejan de existir en el sitio.
-     El movimiento es idempotente: si ya no hay nada en esas carpetas, no hace nada.
   B) Aplica los parches idempotentes del sitio (parche_webp + parche_galeria +
      consolidar_sitio): .webp en el carrito, mosaico mejorado conectado,
      menu/pie/enlaces de Herramientas y estilos.
@@ -33,16 +32,24 @@ Uso (consola dentro de la carpeta del proyecto):
     py herramientas/actualizacion_definitiva.py --revertir  -> devuelve Legado y
         Prueba Trimestre a la galeria (descomenta las lineas jubiladas)
 
+PASO A PASO PARA SUBIR FOTOS NUEVAS (lo que usas dia a dia):
+    1. Mete tus fotos terminadas (JPG/PNG/HEIC/RAW) en por-procesar\\ (sueltas
+       o en carpetas, ej. por-procesar\\t4\\). Esa carpeta NO se sube a GitHub.
+    2. Doble clic a herramientas\\actualizacion_definitiva.bat: prepara las
+       fotos con marca de agua en fotos\\galeria\\ y regenera la galeria.
+    3. GitHub Desktop -> Commit to main -> Push origin. En jfz.com se ven solas.
+
 Las piezas que siguen viviendo aparte (por diseño):
   - preparar_fotos.py  : convertido de fotos (necesita herramientas/marca_agua.png,
-                        tus originales y Pillow; no tiene sentido fusionarlo aqui).
+                        tus originales y Pillow; guarda directo en fotos/galeria/).
   - actualizar_galeria.py : generador de fotos.js (este script lo llama).
   - pedido.ps1 : modelo manual del pedido; el boton «Descargar pedido (.ps1)»
                  del carrito sigue generando su propio script.
 
 IMPORTANTE (migracion desde los archivos viejos): si todavia tenes en tu PC
-"preparar_y_actualizar.bat" o "actualizar todo.bat", borralos: esta herramienta
-crea "actualizacion_definitiva.bat", que es ahora el unico boton del flujo.
+"preparar_y_actualizar.bat", "actualizar todo.bat" o "mover_fotos_a_galeria.bat",
+borralos: esta herramienta crea "actualizacion_definitiva.bat", que es ahora el
+unico boton del flujo (y mover_fotos_a_galeria se elimina solo al ejecutarla).
 """
 import subprocess
 import sys
@@ -161,10 +168,67 @@ def _destino_libre(nombre):
         i += 1
 
 
+def _mover_a_galeria(origen, destino_base):
+    """Mueve un archivo a fotos/galeria/ (renombrando si hay choque o si el
+    navegador no muestra el formato). Devuelve el texto del registro o None."""
+    import shutil
+    destino = _destino_libre(destino_base or origen.name)
+    try:
+        if destino.suffix.lower() == ".jpg" and origen.suffix.lower() not in EXT_FOTOS:
+            # HEIC/TIFF: el navegador no lo muestra -> se convierte a JPG
+            if _convertir_a_jpg(origen, destino):
+                origen.unlink()
+                return f"{origen.parent.name}/{origen.name} -> galeria/{destino.name} (convertida a JPG)"
+            shutil.move(str(origen), str(DESTINO_GALERIA / origen.name))
+            return f"{origen.parent.name}/{origen.name} -> galeria/{origen.name} (no pude convertirla; revisala)"
+        shutil.move(str(origen), str(destino))
+        return f"{origen.parent.name}/{origen.name} -> galeria/{destino.name}"
+    except OSError as e:
+        return "__ERROR__ " + str(e)
+
+
+def ordenar_fotos():
+    """Recoge las fotos que esten SUELTAS dentro de fotos/ (y subcarpetas no
+    jubiladas, como t4/) y las mueve a la carpeta general fotos/galeria/.
+    Asi la galeria siempre muestra TODO: es la unica seccion que existe ahora.
+    Idempotente: si no queda nada suelto, no hace nada."""
+    movidas, avisos = [], []
+    if not FOTOS.is_dir():
+        return movidas, avisos
+    DESTINO_GALERIA.mkdir(exist_ok=True)
+    # 1) archivos sueltos directamente en fotos/ (cualquier extension de foto)
+    for p in sorted(FOTOS.iterdir()):
+        if not p.is_file() or p.suffix.lower() not in (EXT_FOTOS + EXT_EXTRA):
+            continue
+        res = _mover_a_galeria(p, None)
+        if res and res.startswith("__ERROR__"):
+            avisos.append(f"No pude mover {p.name}: {res[10:]}")
+        elif res:
+            movidas.append(res)
+    # 2) fotos dentro de subcarpetas que NO sean galeria ni estar jubiladas
+    for sub in sorted(FOTOS.iterdir()):
+        if not sub.is_dir() or _normalizar(sub.name) == "galeria" or _es_carjeta_jubilada(sub.name):
+            continue
+        for p in sorted(sub.rglob("*")):
+            if not p.is_file() or p.suffix.lower() not in (EXT_FOTOS + EXT_EXTRA):
+                continue
+            res = _mover_a_galeria(p, None)
+            if res and res.startswith("__ERROR__"):
+                avisos.append(f"No pude mover {sub.name}/{p.name}: {res[10:]}")
+            elif res:
+                movidas.append(res)
+        # eliminar la subcarpeta si quedo vacia (solo carpetas, conservo los .txt)
+        try:
+            if sub.is_dir() and not any(sub.iterdir()):
+                sub.rmdir()
+        except OSError:
+            pass
+    return movidas, avisos
+
+
 def mover_fotos_jubiladas():
     """Mueve las fotos de galeria>legado y galeria>prueba trimestre hacia
     la carpeta general fotos/galeria/. Idempotente: si no queda nada, no hace nada."""
-    import shutil
     movidas, avisos = [], []
     if FOTOS.is_dir():
         for sub in sorted(FOTOS.iterdir()):
@@ -176,21 +240,11 @@ def mover_fotos_jubiladas():
                 continue
             DESTINO_GALERIA.mkdir(exist_ok=True)
             for foto in archivos:
-                destino = _destino_libre(foto.name)
-                try:
-                    if destino.suffix.lower() == ".jpg" and foto.suffix.lower() not in EXT_FOTOS:
-                        # HEIC/TIFF: el navegador no lo muestra -> se convierte a JPG
-                        if _convertir_a_jpg(foto, destino):
-                            foto.unlink()
-                            movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name} (convertida a JPG)")
-                        else:
-                            shutil.move(str(foto), str(DESTINO_GALERIA / foto.name))
-                            movidas.append(f"{sub.name}/{foto.name} -> galeria/{foto.name} (no pude convertirla; revisala)")
-                    else:
-                        shutil.move(str(foto), str(destino))
-                        movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name}")
-                except OSError as e:
-                    avisos.append(f"No pude mover {sub.name}/{foto.name}: {e}")
+                res = _mover_a_galeria(foto, None)
+                if res and res.startswith("__ERROR__"):
+                    avisos.append(f"No pude mover {sub.name}/{foto.name}: {res[10:]}")
+                elif res:
+                    movidas.append(res)
     for m in movidas:
         print("+ Foto migrada a la galería general: " + m)
     for a in avisos:
@@ -430,15 +484,16 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
       <div class="container" data-aos="fade-up">
         <div class="jfz-panel">
           <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
-          <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
-            <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.
-            La «Actualización definitiva» además <strong>movió las fotos de Legado y Prueba Trimestre a
-            <code>fotos/galeria/</code></strong> y dejó sin efecto esas dos secciones antiguas.</p>
+          <p>Así subo mis fotos terminadas a la galería con marca de agua:</p>
+          <ol class="jfz-pasos">
+            <li>Mete tus fotos (JPG, PNG, HEIC o RAW: CR2, CR3, NEF...) dentro de <code>por-procesar/</code>, sueltas o en carpetas (ej. <code>por-procesar/t4/</code>). Esa carpeta <strong>no se sube a GitHub</strong>: tus originales quedan solo en tu PC.</li>
+            <li>Pulsa el botón de abajo (doble clic al archivo también sirve). Convierte las fotos a WebP <strong>con marca de agua</strong>, las deja en <code>fotos/galeria/</code> y regenera la galería.</li>
+            <li>Abre GitHub Desktop &rarr; «Commit to main» &rarr; «Push origin». En 1-2 minutos se ven en jfz.com.</li>
+          </ol>
           <div class="jfz-herr-botones">
             <a class="btn-get-started" href="actualizacion_definitiva.bat" download><i class="bi bi-play-circle"></i> Actualización definitiva (todo en uno)</a>
-            <a class="btn-get-started" href="mover_fotos_a_galeria.bat" download><i class="bi bi-folder2-open"></i> Mover mis fotos a la galería</a>
           </div>
-          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
+          <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». Las fotos que ya estaban convertidas no se repiten; los nombres repetidos reciben _1, _2... automáticamente.</p>
 
           <h2 class="jfz-sub">Las piezas, por separado</h2>
           <div class="row gy-4 mt-1">
@@ -454,7 +509,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
               <div class="jfz-serv">
                 <i class="bi bi-camera-reels"></i>
                 <h3>Convertir a WebP</h3>
-                <p>RAW / CR2 / JPG &rarr; WebP con marca de agua y fecha EXIF (<code>preparar_fotos.py</code> + <code>marca_agua.png</code>). La «Actualización definitiva» ya lo ejecuta sola.</p>
+                <p>RAW / CR2 / JPG / HEIC &rarr; WebP con marca de agua y fecha EXIF, directo a <code>fotos/galeria/</code> (<code>preparar_fotos.py</code> + <code>marca_agua.png</code>). La «Actualización definitiva» ya lo ejecuta sola.</p>
                 <a class="jfz-svc-add" href="preparar_fotos.py" download><i class="bi bi-download"></i> Descargar script</a>
               </div>
             </div>
@@ -491,6 +546,16 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
             <p><strong>fechas.txt</strong> — <code>t4 | IMG_6001 | 2026-08-15</code> (también acepta rangos: <code>IMG_6001 a IMG_6020</code>)</p>
             <p><strong>etiquetas.txt</strong> — <code>IMG_6001 | moto, casco</code> (las mismas palabras que usan los botones #moto #casco #caras)</p>
             <p class="jfz-note">Después de editar cualquiera de estos archivos, vuelve a pulsar «Actualización definitiva».</p>
+          </div>
+
+          <h2 class="jfz-sub" id="orden">El orden en herramientas/ (resumido)</h2>
+          <div class="jfz-panel jfz-herr-notas">
+            <p><strong>Tú solo usas un archivo:</strong> <code>actualizacion_definitiva.bat</code> (doble clic). Los demás son sus piezas internas o recursos:</p>
+            <p><code>actualizacion_definitiva.py</code> — el cerebro (jubila secciones, parchea el sitio, regenera todo)</p>
+            <p><code>preparar_fotos.py</code> + <code>marca_agua.png</code> — conversión con marca de agua (el .bat lo llama solo)</p>
+            <p><code>actualizar_galeria.py</code> — generador de fotos.js (el .bat lo llama solo)</p>
+            <p><code>pedido.ps1</code> — modelo manual para entregar originales (lo normal es usar el botón del carrito)</p>
+            <p><code>index.html</code> — esta misma página (se regenera sola)</p>
           </div>
         </div>
       </div>
@@ -599,6 +664,8 @@ def consolidar(hechos):
 .jfz-herr-enlace { font: 500 14px var(--nav-font); letter-spacing: .05em; color: rgba(255,255,255,.75); text-decoration: none; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 6px 14px; }
 .jfz-herr-enlace:hover { color: #fff; border-color: var(--accent-color); }
 .jfz-herr-botones { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0 6px; }
+.jfz-pasos { margin: 12px 0 6px 22px; line-height: 1.9; }
+.jfz-pasos li { margin-bottom: 6px; }
 .jfz-herr-notas p { margin-bottom: 8px; }
 .jfz-pie-herr { text-align: center; margin-top: 10px; }
 .jfz-pie-herr a { color: rgba(255,255,255,.6); text-decoration: none; font-size: 14px; }
@@ -614,12 +681,14 @@ BAT_DEFINITIVA = """@echo off
 rem ============================================================
 rem  "actualizacion_definitiva.bat" - EL BOTON UNICO de este sitio.
 rem  Doble clic y hace TODO el flujo automatico, en orden:
-rem    1) actualizacion_definitiva.py  (mueve las fotos de Legado y Prueba
-rem       Trimestre a fotos\\galeria, jubila esas secciones, aplica los parches
-rem       del sitio y consolida los botones) + regenera la galeria
-rem    2) preparar_fotos.py            (fotos nuevas -> WebP con marca
-rem       de agua; usa herramientas\\marca_agua.png)
+rem    1) actualizacion_definitiva.py  (mueve las fotos sueltas que queden
+rem       dentro de fotos\\ en la carpeta general fotos\\galeria, jubila las
+rem       secciones Legado/Prueba Trimestre, aplica los parches del sitio
+rem       y consolida los botones)
+rem    2) preparar_fotos.py            (fotos de por-procesar\\ -> WebP con
+rem       marca de agua en fotos\\galeria; usa herramientas\\marca_agua.png)
 rem    3) actualizar_galeria.py        (regenera assets/js/fotos.js)
+rem  Despues: GitHub Desktop -> Commit to main -> Push origin.
 rem  Tambien sirve para ejecutar solo UNA pieza intermedia:
 rem    "actualizacion_definitiva.bat" 1  -> solo jubilacion + parches
 rem    "actualizacion_definitiva.bat" 2  -> hasta convertir fotos
@@ -642,16 +711,16 @@ if not "%~1"=="" (
   echo %~1| findstr /r "^[1-3]$" >nul && set PASO_FINAL=%~1
 )
 
-echo === 1^) Actualizacion definitiva: jubilar Legado/Prueba + parches + galeria ===
+echo === 1^) Actualizacion definitiva: ordenar fotos + jubilar Legado/Prueba + parches ===
 %PY% herramientas\\actualizacion_definitiva.py
 if errorlevel 1 (echo Hubo un problema en la actualizacion. Avsale a Claude. & goto fin)
 if %PASO_FINAL% LSS 2 goto fin
 echo.
 
-echo === 2^) Convirtiendo fotos nuevas a WebP ===
+echo === 2^) Convirtiendo fotos nuevas a WebP (con marca de agua) ===
 %PY% herramientas\\preparar_fotos.py
 if errorlevel 2 (echo Hubo un problema al convertir. Avsale a Claude. & goto fin)
-if errorlevel 1 echo   ^(no habia fotos nuevas: continuo con la galeria^)
+if errorlevel 1 echo   ^(no habia fotos nuevas en por-procesar: continuo con la galeria^)
 if %PASO_FINAL% LSS 3 goto fin
 echo.
 
@@ -681,6 +750,7 @@ A_BORRAR = [
                                # solo herramientas/index.html y cualquier "index.bat" heredado
     "consolidar_sitio",
     "actualizar todo",         # .bat/.cmd/.ps1
+    "mover_fotos_a_galeria",   # incluido en el flujo del boton unico (preparar_fotos ya guarda en galeria)
 ]
 
 def _norm(s):
@@ -744,8 +814,16 @@ def main():
     if not (HERR / "marca_agua.png").exists():
         print(MARCA_AGUIO.replace("\n", " "))
 
-    # A) jubilar Legado y Prueba Trimestre (mover sus fotos a galeria + comentar textos)
-    print("\n--- A) Jubilando secciones de la galería (fotos -> fotos/galeria) ---")
+    # A) ordenar fotos sueltas + jubilar Legado y Prueba Trimestre (mover sus fotos a galeria + comentar textos)
+    print("\n--- A) Ordenando la carpeta fotos/ hacia fotos/galeria ---")
+    mov, av = ordenar_fotos()
+    for m in mov:
+        print("+ Foto ordenada a la galería general: " + m)
+    for a in av:
+        print("AVISO: " + a)
+    if not mov and not av:
+        print("fotos/ ya estaba ordenada: todas las fotos viven en fotos/galeria/.")
+    print("\n--- A2) Jubilando secciones antiguas (fotos -> fotos/galeria) ---")
     mover_fotos_jubiladas()
     jubilar()
 
