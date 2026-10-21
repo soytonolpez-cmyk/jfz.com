@@ -6,7 +6,7 @@
 #
 # El orden importa: la última regla que toque una foto manda (igual que en fechas.txt).
 # Una foto puede tener varias etiquetas (moto,caras). Las etiquetas se ven tal cual en el sitio.
-# Después de editar este archivo ejecuta herramientas/preparar_y_actualizar.bat
+# Después de editar este archivo ejecuta herramientas/"actualizar todo.bat"
 #
 # Ejemplos (quita el # del inicio para activarlos):
 # IMG_1468 | moto

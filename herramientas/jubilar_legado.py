@@ -12,7 +12,7 @@ Cuando quieras pasarlAs físicamente a por-procesar/legado/, usa migrar_legado.p
 Uso (consola dentro de la carpeta del proyecto):
     py herramientas/jubilar_legado.py          -> aplica los cambios
     py herramientas/jubilar_legado.py --revertir -> devuelve Legado a la galería (deshace el paso 1 y 2)
-Para revertir también el paso 3: vuelve a ejecutar preparar_y_actualizar.bat después de --revertir.
+Para revertir también el paso 3: vuelve a ejecutar "actualizar todo.bat" después de --revertir.
 """
 import subprocess
 import sys
@@ -92,7 +92,7 @@ def revertir():
         ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
     if recuperadas:
         print(f"+ Se devolvieron {recuperadas} línea(s) de legado.")
-        print("Ejecuta ahora preparar_y_actualizar.bat para regenerar la galería con Legado.")
+        print("Ejecuta ahora \"actualizar todo.bat\" para regenerar la galería con Legado.")
     else:
         print("No había nada jubilado que devolver.")
     return 0

@@ -1,6 +1,6 @@
 # Una línea por sección de la galería:   carpeta | Título que se ve en el sitio
 # El orden de arriba hacia abajo es el orden en la galería.
 # Para crear una nueva: crea la carpeta dentro de "fotos" (en minúsculas, sin espacios ni tildes),
-# agrega su línea aquí y ejecuta herramientas/preparar_y_actualizar.bat
+# agrega su línea aquí y ejecuta herramientas/"actualizar todo.bat"
 Legado | Legado
 t9test | Prueba Trimestre
