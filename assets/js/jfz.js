@@ -143,6 +143,13 @@
 
   /* ---------- galería + filtros (fechas, trimestres, orden) ---------- */
   var EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
+  /* Paginado de la galería: NO se pintan todas las fotos de golpe. Al inicio y cada vez
+     que el usuario pulsa «Cargar más imágenes» se agregan LOTE fotos a la vez.
+     El tope antiguo (LIMITE_SECCION = 300) era el culpable de que la página «se cortara»
+     en la imagen ~3036: todo lo que pasara de ese número simplemente no se renderizaba. */
+  var LOTE = 50;                 // fotos por lote (recomendado: equilibrio entre rapidez y peso)
+  var topePorSeccion = {};       // id de sección -> cuántas fotos visibles están pintadas
+  function resetTope() { topePorSeccion = {}; }
   /* A pedido del dueño del sitio:
      - La barra de búsqueda quedó ELIMINADA del código (ya no existe en la galería).
      - Las etiquetas "motos", "caras" y "cascos" quedaron BORRADAS: no se muestran
@@ -166,8 +173,13 @@
   }
   function hayFiltros() { return !!(EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || EST.orden); }
   function chipHTML(txt, accion, val) { return '<span class="jfz-chip">' + esc(txt) + '<button type="button" data-acc="' + accion + '" data-v="' + esc(val || "") + '" aria-label="Quitar filtro"><i class="bi bi-x-lg"></i></button></span>'; }
-  function renderChips() {
-    var box = $("#jfz-filtros-activos"); if (!box) return;
+  /* Formatea "2026-08-27" como "27 ago 2026" (para cajas de fecha legibles y cortas) */
+  var MESES_ABREV = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function fechaCorta(d) { var p = String(d).split("-"); return p.length === 3 ? (+p[2]) + " " + MESES_ABREV[+p[1] - 1] + " " + p[0] : d; }
+  function renderChips(box) {
+    /* se llama a veces con el panel ya re-pintado (p. ej. tras «Limpiar todo»): si no se le
+       pasa la caja y el id no está en el DOM, salir sin errores en vez de lanzar TypeError */
+    box = box || $("#jfz-filtros-activos"); if (!box) return;
     var c = [];
     EST.etiquetas.forEach(function (e) { if (etiquetaVisible(e)) c.push(chipHTML("#" + e, "tag", e)); });
     if (EST.desde) c.push(chipHTML("desde " + EST.desde, "desde"));
@@ -176,6 +188,9 @@
     if (EST.orden) c.push(chipHTML(EST.orden === "asc" ? "fecha ↑ antiguas primero" : "fecha ↓ nuevas primero", "orden"));
     box.innerHTML = c.length ? c.join("") + '<button type="button" class="jfz-limpiar" data-acc="limpiar"><i class="bi bi-arrow-counterclockwise"></i> Limpiar todo</button>' : "";
     box.hidden = !c.length;
+    /* el panel puede haber crecido (o encogido) al cambiar los chips: re-medir el cuerpo abierto */
+    var cuerpoC = $("#jfz-filtros-cuerpo"), panelC = $("#jfz-buscador");
+    if (cuerpoC && panelC && panelC.classList.contains("abierto")) cuerpoC.style.maxHeight = cuerpoC.scrollHeight + "px";
   }
   function trimsDelSitio() {
     var trims = {};
@@ -255,12 +270,16 @@
     if (location.hash === "#buscar") { setTimeout(function () { var bq = $("#jfz-q"); if (bq) { try { bq.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} bq.focus({ preventScroll: true }); } }, 80); }
     showTab(); syncCart();
   }
-  /* Pinta las tarjetas que pasan los filtros, sección por sección (con tope de render). */
-  var LIMITE_SECCION = 300;
+  /* Pinta las tarjetas que pasan los filtros, sección por sección, pero SOLO hasta el
+     tope de paginado (topePorSeccion). El resto queda detrás del botón «Cargar más
+     imágenes»; si aún falta material por pintar se muestra una animación de carga abajo. */
   function pintarGaleria() {
-    var total = 0;
+    resetTope();                 // al cambiar filtros/orden el paginado vuelve a empezar desde 0
+    var box = $("#jfz-galeria"); if (!box) return;
+    var total = 0, pendientesTotales = 0;
     $$(".jfz-sec").forEach(function (secEl) {
-      var s = S.filter(function (x) { return x.id === secEl.getAttribute("data-id"); })[0];
+      var id = secEl.getAttribute("data-id");
+      var s = S.filter(function (x) { return x.id === id; })[0];
       if (!s) return;
       var visibles = s.fotos.filter(function (f) { return pasaFiltro(s, f); });
       if (EST.orden) visibles.sort(function (a, b) {
@@ -269,10 +288,12 @@
         if (!da) return 1; if (!db) return -1;
         return EST.orden === "asc" ? (da < db ? -1 : da > db ? 1 : (a < b ? -1 : 1)) : (da > db ? -1 : da < db ? 1 : (a < b ? -1 : 1));
       });
+      topePorSeccion[id] = Math.min(LOTE, visibles.length);
       total += visibles.length;
+      pendientesTotales += Math.max(0, visibles.length - LOTE);
       var fila = secEl.querySelector(".row");
       fila.classList.add("jfz-mosaico");   // conserva el mosaico del CSS sin romper la animación plegable
-      fila.innerHTML = visibles.length ? visibles.slice(0, LIMITE_SECCION).map(function (f) { return cardHTML(f, s.id, s.carpeta); }).join("") :
+      fila.innerHTML = visibles.length ? visibles.slice(0, topePorSeccion[id]).map(function (f) { return cardHTML(f, id, s.carpeta); }).join("") :
         (hayFiltros() ? "" : '<p class="jfz-empty">' + (s.fotos.length ? "Ninguna foto con esos filtros." : "Próximamente: todavía no hay fotos en <code>fotos/" + esc(s.carpeta) + "/</code>. Ejecuta herramientas/actualizacion_definitiva.bat.") + "</p>");
       secEl.hidden = !(visibles.length || !hayFiltros());
       var small = secEl.querySelector(".jfz-sec-title small");
@@ -287,20 +308,116 @@
     if (cuerpoF && panelF && panelF.classList.contains("abierto")) cuerpoF.style.maxHeight = cuerpoF.scrollHeight + "px";
     wireAdd(box_galeria());
     initLightbox(".jfz-sec:not([hidden]) .jfz-lightbox");
+    renderFooterLoad(pendientesTotales);
     try { window.dispatchEvent(new Event("jfz-gallery-painted")); } catch (e) {}
   }
   function box_galeria() { return $("#jfz-galeria"); }
 
-  /* Resumen corto que se ve en la barra de filtros cuando el panel esta plegado */
+  /* ---------- paginado: pie con botón «Cargar más imágenes» + spinner de carga ---------- */
+  function renderFooterLoad(pendientes) {
+    var box = box_galeria(); if (!box) return;
+    var foot = $("#jfz-load-more");
+    if (!foot) {
+      foot = document.createElement("div");
+      foot.id = "jfz-load-more";
+      foot.className = "jfz-load-more";
+      foot.innerHTML =
+        '<button type="button" class="jfz-btn-mas" id="jfz-btn-mas"><i class="bi bi-collection"></i> Cargar más imágenes</button>' +
+        '<div class="jfz-cargando" id="jfz-cargando" hidden><span class="jfz-spinner" aria-hidden="true"></span> Cargando imágenes…</div>' +
+        '<div class="jfz-fin" id="jfz-fin" hidden><i class="bi bi-check2-circle"></i> Has visto todas las imágenes</div>';
+      box.appendChild(foot);
+      $("#jfz-btn-mas", foot).addEventListener("click", cargarMas);
+    }
+    var btn = $("#jfz-btn-mas", foot), fin = $("#jfz-fin", foot);
+    if (pendientes > 0) {
+      btn.hidden = false; fin.hidden = true;
+      btn.innerHTML = '<i class="bi bi-collection"></i> Cargar más imágenes <small>(quedan ' + pendientes + ')</small>';
+    } else {
+      btn.hidden = true;
+      fin.hidden = !(box.querySelector(".jfz-card"));  // «fin» solo si realmente hay fotos pintadas
+    }
+    $("#jfz-cargando", foot).hidden = true;
+  }
+  /* Carga un lote más por cada sección visible y lo ANIMA en pantalla (fade-in suave).
+     Se muestra el spinner mientras el navegador decodifica las nuevas imágenes; cuando
+     terminan de cargarse (o tras un tiempo máximo de seguridad) se oculta y reaparece
+     el botón, listo para cargar otro lote si aún faltan. */
+  function cargarMas() {
+    var btn = $("#jfz-btn-mas"), spin = $("#jfz-cargando");
+    if (btn) btn.hidden = true;
+    if (spin) spin.hidden = false;
+    var nuevosImgs = [];
+    $$(".jfz-sec:not([hidden])").forEach(function (secEl) {
+      var id = secEl.getAttribute("data-id");
+      var s = S.filter(function (x) { return x.id === id; })[0];
+      if (!s) return;
+      var visibles = s.fotos.filter(function (f) { return pasaFiltro(s, f); });
+      if (EST.orden) visibles.sort(function (a, b) {
+        var da = fechaDe(s, a), db = fechaDe(s, b);
+        if (!da && !db) return a < b ? -1 : 1;
+        if (!da) return 1; if (!db) return -1;
+        return EST.orden === "asc" ? (da < db ? -1 : da > db ? 1 : (a < b ? -1 : 1)) : (da > db ? -1 : da < db ? 1 : (a < b ? -1 : 1));
+      });
+      var prev = topePorSeccion[id] || 0;
+      var nuevo = Math.min(prev + LOTE, visibles.length);
+      if (nuevo <= prev) return;
+      topePorSeccion[id] = nuevo;
+      var fila = secEl.querySelector(".row");
+      /* si el filtro dejó la sección sin fotos, quita el aviso de vacío antes de agregar tarjetas */
+      var vacio = fila.querySelector(".jfz-empty"); if (vacio) vacio.remove();
+      var frag = document.createElement("div");
+      frag.innerHTML = visibles.slice(prev, nuevo).map(function (f) { return cardHTML(f, id, s.carpeta); }).join("");
+      var added = Array.prototype.slice.call(frag.children);
+      added.forEach(function (el) { el.classList.add("jfz-nueva"); fila.appendChild(el); });
+      nuevosImgs = nuevosImgs.concat(added);
+      /* dispara la transición de entrada en el siguiente frame */
+      requestAnimationFrame(function () { added.forEach(function (el) { el.classList.add("mostrar"); }); });
+    });
+    wireAdd($("#jfz-galeria"));
+    syncCart();
+    initLightbox(".jfz-sec:not([hidden]) .jfz-lightbox");
+    try { window.dispatchEvent(new Event("jfz-gallery-painted")); } catch (e) {}
+    /* esperar a que carguen las imágenes nuevas (con tope de 4 s por seguridad) */
+    var pendientesImg = nuevosImgs.reduce(function (n, el) { var im = el.querySelector("img"); return n + (im && !im.complete ? 1 : 0); }, 0);
+    var terminado = false;
+    function listo() {
+      if (terminado) return; terminado = true;
+      nuevosImgs.forEach(function (el) { setTimeout(function () { el.classList.remove("jfz-nueva"); }, 50); });
+      var pend = 0;
+      $$(".jfz-sec:not([hidden])").forEach(function (secEl) {
+        var id = secEl.getAttribute("data-id");
+        var s = S.filter(function (x) { return x.id === id; })[0];
+        if (!s) return;
+        var visibles = s.fotos.filter(function (f) { return pasaFiltro(s, f); });
+        pend += Math.max(0, visibles.length - (topePorSeccion[id] || 0));
+      });
+      renderFooterLoad(pend);
+    }
+    if (!pendientesImg) { setTimeout(listo, 350); }   // todo cacheado: dejar ver la animación un instante
+    else {
+      nuevosImgs.forEach(function (el) {
+        var im = el.querySelector("img"); if (!im || im.complete) return;
+        im.addEventListener("load", function () { if (--pendientesImg <= 0) listo(); });
+        im.addEventListener("error", function () { if (--pendientesImg <= 0) listo(); });
+      });
+      setTimeout(listo, 4000);
+    }
+  }
+
+  /* Resumen corto que se ve en la barra de filtros cuando el panel esta plegado.
+     Cada filtro activo se muestra en su PROPIA cajita (ya no una sola píldora larga
+     con todo concatenado). El contenedor permite flex-wrap para que, en pantallas
+     estrechas, las cajitas se amontenen de arriba hacia abajo de forma estética. */
   function actualizarResumenFiltros() {
     var r = $("#jfz-ft-resumen"); if (!r) return;
-    var partes = [];
-    if (EST.desde || EST.hasta) partes.push((EST.desde || "…") + " → " + (EST.hasta || "…"));
-    if (EST.trim.length) partes.push(EST.trim.length === 1 ? EST.trim[0] : EST.trim.length + " trimestres");
-    if (EST.orden) partes.push(EST.orden === "asc" ? "↑ antiguas" : "↓ nuevas");
-    r.textContent = partes.length ? partes.join(" · ") : "";
-    r.hidden = !partes.length;
-    var panel = $("#jfz-buscador"); if (panel) panel.classList.toggle("tiene-filtros", partes.length > 0);
+    var chipsR = [];
+    if (EST.desde || EST.hasta) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar-range"></i>' + esc(((EST.desde ? fechaCorta(EST.desde) : "…") + " → " + (EST.hasta ? fechaCorta(EST.hasta) : "…"))) + '</span>');
+    if (EST.trim.length === 1) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar3"></i>' + esc(EST.trim[0]) + '</span>');
+    else if (EST.trim.length > 1) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar3"></i>' + esc(EST.trim.join(", ")) + '</span>');
+    if (EST.orden) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-sort-' + (EST.orden === "asc" ? "down-alt" : "down") + '"></i>' + (EST.orden === "asc" ? "↑ antiguas" : "↓ nuevas") + '</span>');
+    r.innerHTML = chipsR.join("");
+    r.hidden = !chipsR.length;
+    var panel = $("#jfz-buscador"); if (panel) panel.classList.toggle("tiene-filtros", chipsR.length > 0);
   }
 
   /* Plegable hacia abajo: la barra "Filtros" siempre visible; el cuerpo sube/baja con animación */
@@ -347,7 +464,25 @@
       if (acc === "hasta") { EST.hasta = ""; if (d2) d2.value = ""; }
       if (acc === "trim") { EST.trim = EST.trim.filter(function (x) { return x !== v; }); var cb2 = $('.jfz-trims input[value="' + v + '"]'); if (cb2) { cb2.checked = false; if (cb2.closest(".jfz-trim")) cb2.closest(".jfz-trim").classList.remove("on"); } }
       if (acc === "orden") { EST.orden = ""; if (o) o.value = ""; }
-      if (acc === "limpiar") { EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" }; renderGallery(); return; }
+      if (acc === "limpiar") {
+        EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
+        /* Se re-pinta SOLO el panel de filtros para que los controles vuelvan a su estado
+           vacío; como el DOM del panel se sustituye, los chips y el resumen se actualizan
+           apuntando directamente a la caja nueva (antes, al llamar renderGallery() completo,
+           se duplicaban listeners en las pestañas y quedaban referencias colgadas). */
+        var boxL = $("#jfz-galeria"), panelViejo = $("#jfz-buscador");
+        if (boxL && panelViejo) {
+          var tmp = document.createElement("div");
+          tmp.innerHTML = buscadorHTML();
+          var panelNuevo = tmp.firstChild;
+          if (panelNuevo) boxL.replaceChild(panelNuevo, panelViejo);
+          wireBuscador(boxL);
+          renderChips($("#jfz-filtros-activos"));
+          actualizarResumenFiltros();
+        }
+        pintarGaleria();
+        return;
+      }
       pintarGaleria();
     });
   }
@@ -529,5 +664,16 @@
   syncCart();
   var pl = document.getElementById("preloader"); if (pl) pl.remove();
   if (demo && $("#jfz-demo-aviso")) $("#jfz-demo-aviso").hidden = false;
+
+  /* Al cambiar el tamaño de la pantalla, si el panel de filtros esta abierto se
+     re-mide su alto: al amontonarse los campos verticalmente el contenido crece y,
+     sin esto, el max-height viejo cortaria parte de los filtros (responsive). */
+  window.addEventListener("resize", function () {
+    clearTimeout(window._jfzResizeT);
+    window._jfzResizeT = setTimeout(function () {
+      var cuerpoR = $("#jfz-filtros-cuerpo"), panelR = $("#jfz-buscador");
+      if (cuerpoR && panelR && panelR.classList.contains("abierto")) cuerpoR.style.maxHeight = cuerpoR.scrollHeight + "px";
+    }, 150);
+  });
 })();
 (function () { var m = document.getElementById("jfz-mapa"); if (m && window.JFZ_CONFIG && /^https:\/\/www\.google\.com\/maps\/embed/.test(window.JFZ_CONFIG.MAPA_URL || "")) m.src = window.JFZ_CONFIG.MAPA_URL; })();

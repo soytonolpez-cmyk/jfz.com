@@ -52,12 +52,21 @@
 .jfz-filtros-toggle:focus-visible { outline: 3px solid rgba(47,91,255,.35); outline-offset: 2px; }
 .jfz-ft-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: var(--accent-color); color: #fff; font-size: 15px; flex: 0 0 auto; }
 .jfz-ft-txt { flex: 0 0 auto; }
+/* Resumen de filtros activos en la barra plegada: YA NO una sola píldora larga azul,
+   sino UNA CAJITA POR FILTRO. El contenedor hace flex-wrap para que, si no hay espacio
+   lateral (móviles), las cajas se amontenen de arriba hacia abajo de forma estética. */
 .jfz-ft-resumen {
-  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font: 500 12px "Roboto", sans-serif; letter-spacing: .02em; text-transform: none;
-  color: #fff; background: var(--accent-color); border-radius: 999px; padding: 3px 12px; width: fit-content;
+  flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
 }
 .jfz-ft-resumen[hidden] { display: none; }
+.jfz-ft-caja {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  font: 500 12px "Roboto", sans-serif; letter-spacing: .02em; text-transform: none;
+  color: var(--accent-color, #2f5bff); background: #eef4ff;
+  border: 1px solid #cddffb; border-radius: 999px; padding: 3px 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.jfz-ft-caja i { font-size: 13px; flex: 0 0 auto; }
 .jfz-filtros:not(.abierto) .jfz-filtros-toggle { border-radius: 14px; }
 .jfz-filtros.abierto .jfz-filtros-toggle { border-radius: 14px 14px 0 0; border-bottom-color: transparent; }
 .jfz-ft-flecha { margin-left: auto; display: inline-flex; transition: transform .3s ease; color: #666; }
@@ -105,10 +114,37 @@
 /* sombra compacta cuando el panel está pegado a la pantalla */
 .jfz-filtros.jfz-pegado .jfz-filtros-toggle { box-shadow: 0 8px 22px rgba(0,0,0,.45); }
 
+/* ================= paginado: botón «Cargar más imágenes» + spinner ================= */
+.jfz-load-more { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 0 34px; text-align: center; }
+.jfz-btn-mas {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer;
+  background: var(--accent-color, #2f5bff); color: #fff; border: none; border-radius: 999px;
+  padding: 12px 26px; font: 600 15px var(--nav-font, "Oswald", sans-serif); letter-spacing: .04em;
+  box-shadow: 0 4px 16px rgba(47,91,255,.35); transition: transform .15s, box-shadow .2s, opacity .2s;
+}
+.jfz-btn-mas:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(47,91,255,.45); }
+.jfz-btn-mas:active { transform: translateY(0); }
+.jfz-btn-mas small { font-weight: 400; font-size: 12px; opacity: .85; }
+.jfz-btn-mas[hidden] { display: none; }
+.jfz-cargando { display: inline-flex; align-items: center; gap: 10px; font: 500 14px "Roboto", sans-serif; color: #555; }
+.jfz-cargando[hidden] { display: none; }
+.jfz-spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid rgba(47,91,255,.2); border-top-color: var(--accent-color, #2f5bff); animation: jfz-girar .8s linear infinite; flex: 0 0 auto; }
+@keyframes jfz-girar { to { transform: rotate(360deg); } }
+.jfz-fin { font: 500 14px "Roboto", sans-serif; color: #7a828c; display: inline-flex; align-items: center; gap: 8px; }
+.jfz-fin[hidden] { display: none; }
+.jfz-fin i { color: #2eaa5e; font-size: 17px; }
+/* entrada suave de las tarjetas recién cargadas (se le quita la clase tras decodificar) */
+.jfz-mosaico > .jfz-nueva { opacity: 0; transform: translateY(14px); transition: opacity .45s ease, transform .45s ease; }
+.jfz-mosaico > .jfz-nueva.mostrar { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .jfz-mosaico > .jfz-nueva { opacity: 1; transform: none; transition: none; }
+  .jfz-spinner { animation-duration: 1.6s; }
+}
+
 /* ---------- responsive ---------- */
 @media (max-width: 767.98px) {
   .jfz-filtros { top: calc(var(--jfz-header-h) - 10px); padding: 4px 0 8px; margin-bottom: 14px; }
-  .jfz-filtros-toggle { padding: 10px 12px; font-size: 14px; gap: 8px; }
+  .jfz-filtros-toggle { padding: 10px 12px; font-size: 14px; gap: 8px; flex-wrap: wrap; }
   .jfz-ft-ico { width: 26px; height: 26px; }
   .jfz-filtros-cuerpo { padding-left: 14px; padding-right: 14px; }
   .jfz-fg-campos { flex-direction: column; align-items: stretch; }
@@ -116,8 +152,12 @@
   .jfz-fg-fechas input[type="date"] { flex: 1; min-width: 0; }
   .jfz-fg-orden select { width: 100%; min-width: 0; }
   .jfz-trims { flex-direction: row; flex-wrap: wrap; }        /* los trimestres siguen en fila de píldoras */
-  .jfz-ft-resumen { font-size: 11px; max-width: 46%; }
+  /* en pantallas estrechas las cajitas del resumen pasan a su propia línea completa
+     y se amontonan de arriba hacia abajo si no caben lado a lado */
+  .jfz-ft-resumen { flex: 1 1 100%; order: 3; max-width: calc(100% - 34px); }
+  .jfz-ft-caja { font-size: 11px; padding: 2px 10px; }
+  .jfz-btn-mas { width: 100%; max-width: 340px; padding: 12px 18px; }
 }
 @media (max-width: 400px) {
-  .jfz-ft-txt { display: none; }                              /* solo ícono + resumen + flecha */
+  .jfz-ft-txt { display: none; }                              /* solo ícono + cajas del resumen + flecha */
 }
