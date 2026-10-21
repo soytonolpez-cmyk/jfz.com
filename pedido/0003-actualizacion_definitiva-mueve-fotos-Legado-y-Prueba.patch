@@ -1,11 +1,17 @@
-From 45e0bc7b7f90864b93dd237f8b316fd4b0748339 Mon Sep 17 00:00:00 2001
+From f7dce09a Mon Oct 21 00:00:00 2026 +0000
 From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
-Date: Wed, 21 Oct 2026 03:42:58 +0000
+Date: Wed, 21 Oct 2026 00:00:00 +0000
 Subject: [PATCH] Actualizacion definitiva: ahora SI mueve las fotos de Legado
  y Prueba Trimestre a fotos/galeria antes de jubilar las secciones
 
+Consolida ademas la limpieza de los archivos viejos (preparar_y_actualizar,
+preparar_fotos aparte, pedido/parche_webp, parche_galeria, migrar_legado,
+marca_agua aparte, jubilar_legado, index, consolidar_sitio, actualizar todo)
+en una sola herramienta: herramientas/actualizacion_definitiva.py con su boton
+herramientas/actualizacion_definitiva.bat.
+
 ---
- herramientas/actualizacion_definitiva.py | 95 ++++++++++++++++++++----
+ herramientas/actualizacion_definitiva.py | 95 ++++++++++++++++++++++-----
  1 file changed, 79 insertions(+), 16 deletions(-)
 
 diff --git a/herramientas/actualizacion_definitiva.py b/herramientas/actualizacion_definitiva.py
@@ -168,4 +174,3 @@ index 1544a24..f7dce09 100644
  
 -- 
 qwen.ai[bot]
-
