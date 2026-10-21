@@ -66,6 +66,8 @@ CARPETAS_JUBILADAS = ["legado", "t9test"]
 # Carpeta general de la galeria: aca llegan las fotos sacadas de Legado/Prueba
 DESTINO_GALERIA = FOTOS / "galeria"
 EXT_FOTOS = (".jpg", ".jpeg", ".png", ".webp")
+# Tambien se mueven (y convierten a JPG) los formatos que el navegador no muestra.
+EXT_EXTRA = (".heic", ".heif", ".tif", ".tiff")
 
 MARCA_AGUIO = """AVISO: no encontre herramientas/marca_agua.png. Preparar fotos
 avisa si falta; para convertir necesitas ahi tu logo PNG transparente."""
@@ -84,8 +86,69 @@ def _es_carjeta_jubilada(nombre_carpeta):
     return ("legado" in n) or ("prueba" in n and "trimestre" in n) or n == "t9test"
 
 
+# Extensiones de imagen que reconoce el navegador (para renombrar al mover).
+EXT_NAVEGADOR = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _renombrar_para_navegador(nombre):
+    """Si la foto jubilada viene en un formato que el navegador no muestra
+    (HEIC de iPhone, TIFF...), se convierte al moverla a fotos/galeria/ con
+    extension .jpg. Si ya es jpg/png/webp, se deja igual."""
+    p = Path(nombre)
+    if p.suffix.lower() in EXT_NAVEGADOR:
+        return nombre
+    try:
+        from PIL import Image  # lectura suave: si falta Pillow, se mueve igual
+    except ImportError:
+        return nombre
+    try:
+        import pillow_heif     # HEIC/HEIF de iPhone (opcional)
+    except ImportError:
+        pillow_heif = None
+    if pillow_heif is not None:
+        try:
+            pillow_heif.register_heif_opener()
+        except Exception:
+            pass
+    try:
+        with Image.open(p) as im:
+            im.verify()        # solo comprobar que es una imagen legible
+    except Exception:
+        return nombre          # no se puede leer: se mueve tal cual
+    return p.stem + ".jpg"
+
+
+def _convertir_a_jpg(origen, destino):
+    """Revela/redimensiona una foto que el navegador no muestra (HEIC, TIFF...)
+    y la guarda como JPG en destino. Devuelve True si lo logr6."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        return False
+    try:
+        try:
+            import pillow_heif
+            pillow_heif.register_heif_opener()
+        except Exception:
+            pass
+        with Image.open(origen) as im:
+            im = ImageOps.exif_transpose(im)
+            if LADO_MAXIMO_FOTO and max(im.size) > LADO_MAXIMO_FOTO:
+                im.thumbnail((LADO_MAXIMO_FOTO, LADO_MAXIMO_FOTO))
+            if im.mode in ("RGBA", "P", "LA"):
+                im = im.convert("RGB")
+            im.save(destino, "JPEG", quality=85)
+        return True
+    except Exception:
+        return False
+
+
+LADO_MAXIMO_FOTO = 1920  # mismo tope que preparar_fotos.py al convertir jubiladas
+
+
 def _destino_libre(nombre):
     """fotos/galeria/<nombre>; si ya existe uno, agrega _1, _2... detras."""
+    nombre = _renombrar_para_navegador(nombre)
     destino = DESTINO_GALERIA / nombre
     if not destino.exists():
         return destino
@@ -108,15 +171,24 @@ def mover_fotos_jubiladas():
             if not sub.is_dir() or not _es_carjeta_jubilada(sub.name):
                 continue
             archivos = sorted(p for p in sub.iterdir()
-                              if p.is_file() and p.suffix.lower() in EXT_FOTOS)
+                              if p.is_file() and p.suffix.lower() in (EXT_FOTOS + EXT_EXTRA))
             if not archivos:
                 continue
             DESTINO_GALERIA.mkdir(exist_ok=True)
             for foto in archivos:
                 destino = _destino_libre(foto.name)
                 try:
-                    shutil.move(str(foto), str(destino))
-                    movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name}")
+                    if destino.suffix.lower() == ".jpg" and foto.suffix.lower() not in EXT_FOTOS:
+                        # HEIC/TIFF: el navegador no lo muestra -> se convierte a JPG
+                        if _convertir_a_jpg(foto, destino):
+                            foto.unlink()
+                            movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name} (convertida a JPG)")
+                        else:
+                            shutil.move(str(foto), str(DESTINO_GALERIA / foto.name))
+                            movidas.append(f"{sub.name}/{foto.name} -> galeria/{foto.name} (no pude convertirla; revisala)")
+                    else:
+                        shutil.move(str(foto), str(destino))
+                        movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name}")
                 except OSError as e:
                     avisos.append(f"No pude mover {sub.name}/{foto.name}: {e}")
     for m in movidas:
@@ -147,6 +219,12 @@ def jubilar():
                 nueva.append("# JUBILADO (antes en la galería): " + ln)
             else:
                 nueva.append(ln)
+        # Si nadie activo "galeria" como seccion propia, se agrega al final para
+        # que las fotos jubiladas que ahora viven en fotos/galeria/ se vean.
+        if not any(_es_de_seccion(l.strip(), ["galeria"]) for l in nueva
+                   if l.strip() and not l.strip().startswith("#")):
+            nueva.append("galeria | Galería")
+            cambiados.append("trimestres.txt: agregada la sección «galeria» (recibe las fotos jubiladas)")
         if nueva != lineas:
             TRIM.write_text("\n".join(nueva) + "\n", encoding="utf-8")
             cambiados.append("trimestres.txt: Legado y Prueba Trimestre fuera de la galería")
@@ -214,6 +292,10 @@ def revertir():
                     recuperadas += 1
                     continue
             out.append(ln)
+        # Si la seccion «galeria» es la que agrego esta herramienta (linea sin
+        # tocar), al devolver Legado/Prueba se quita para no duplicar fotos.
+        if recuperadas and ruta == TRIM:
+            out = [l for l in out if not _es_de_seccion(l.strip(), ["galeria"]) or l.strip().startswith("#")]
         ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"+ Se devolvieron {recuperadas} línea(s)." if recuperadas else "No había nada jubilado que devolver.")
     if recuperadas:
