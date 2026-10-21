@@ -17,6 +17,14 @@
 .jfz-mosaico .jfz-ancho { grid-column: span 2; }
 .jfz-mosaico .jfz-card { height: 100%; display: flex; flex-direction: column; }
 .jfz-mosaico .jfz-card > a { flex: 1; min-height: 0; aspect-ratio: auto; }
+/* en mosaico el pie de la tarjeta se ancla abajo y NUNCA desborda: si el nombre o el
+   botón no caben, se encogen (puntos suspensivos / solo ícono), nunca se salen de la pantalla */
+.jfz-mosaico .jfz-card figcaption { flex: 0 0 auto; width: 100%; max-width: 100%; box-sizing: border-box; }
+@media (max-width: 767.98px) {
+  /* celdas más angostas: el botón «Agregar» pasa a ser una píldora chica de solo ícono */
+  .jfz-mosaico .jfz-add { padding: 4px 7px; }
+  .jfz-mosaico .jfz-add > span.txt { display: none; }
+}
 .jfz-fecha-chip { position: fixed; right: 16px; top: 90px; z-index: 1030; padding: 8px 14px; border-radius: 999px; background: rgba(20,20,20,.92); color: #fff; border: 1px solid var(--accent-color, #2f5bff); font: 500 14px var(--nav-font, sans-serif); letter-spacing: .04em; pointer-events: none; opacity: 0; transform: translateX(8px); transition: opacity .25s, transform .25s; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 .jfz-fecha-chip.on { opacity: 1; transform: none; }
 

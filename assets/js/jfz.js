@@ -130,7 +130,8 @@
     $$(".jfz-add").forEach(function (btn) {
       var on = has(btn.getAttribute("data-f"));
       btn.classList.toggle("on", on);
-      btn.innerHTML = on ? '<i class="bi bi-check-lg"></i> En el carrito' : '<i class="bi bi-cart-plus"></i> Agregar';
+      btn.innerHTML = on ? '<i class="bi bi-check-lg"></i><span class="txt">En el carrito</span>' : '<i class="bi bi-cart-plus"></i><span class="txt">Agregar</span>';
+      btn.title = on ? "En el carrito" : "Agregar";
       var fig = btn.closest(".jfz-card"); if (fig) fig.classList.toggle("is-selected", on);
     });
     $$(".jfz-svc-add").forEach(function (btn) {
