@@ -6,17 +6,18 @@ Consolida en un solo archivo todo lo que antes estaba repartido en:
     jubilar_legado.py, index.html y consolidar_sitio.py.
 
 Qué hace al ejecutarla (en este orden):
-  A) JUBILA "Legado" y "Prueba Trimestre" de la galeria, SIN mover ninguna foto:
+  A) JUBILA "Legado" y "Prueba Trimestre" de la galeria:
+       - mueve TODAS las fotos que esten todavia en las carpetas jubiladas
+         (fotos/Legado* y fotos/*prueba*/*trimestre*) hacia la carpeta general
+         de la galeria: fotos/galeria/ (conserva los nombres; si uno ya existe,
+         agrega _1, _2... detras). Las carpetas jubiladas quedan vacias.
        - comenta las lineas de esas secciones en fotos/trimestres.txt,
          fotos/fechas.txt y fotos/etiquetas.txt (los datos quedan guardados;
          se pueden devolver con el argumento --revertir).
-       - si todavia existieran las fotos de prueba IMG_9001 / IMG_9002, quita
+       - si quedan las fotos de prueba IMG_9001 / IMG_9002 sin usar, quita
          sus lineas de fotos/etiquetas.txt (las demas etiquetas se conservan).
        - regenera assets/js/fotos.js: las dos secciones dejan de existir en el sitio.
-     NOTA: NO toca las carpetas de fotos (fotos/Legado, fotos/t9test ni sus webp);
-     eso lo haces tu localmente si queres: primero copia lo que te interesa a
-     por-procesar/legado/ (equivale al viejo migrar_legado.py) y despues borra
-     la carpeta fotos/Legado y fotos/t9test con el explorador de Windows.
+     El movimiento es idempotente: si ya no hay nada en esas carpetas, no hace nada.
   B) Aplica los parches idempotentes del sitio (parche_webp + parche_galeria +
      consolidar_sitio): .webp en el carrito, mosaico mejorado conectado,
      menu/pie/enlaces de Herramientas y estilos.
@@ -54,27 +55,89 @@ TRIM = RAIZ / "fotos" / "trimestres.txt"
 OTRAS = [RAIZ / "fotos" / "fechas.txt"]
 ETIQ = RAIZ / "fotos" / "etiquetas.txt"
 
-# Secciones que dejan de existir en la galeria (se comparan en minusculas)
-JUBILAR = ["legado", "t9test"]          # t9test = "Prueba Trimestre"
+# Secciones que dejan de existir en la galeria (se comparan en minusculas).
+# Incluye todas las variantes reales con las que aparecen en trimestres.txt:
+# legado/Legado y t9test/"Prueba Trimestre"/prueba-trimestre.
+JUBILAR = ["legado", "Legado", "t9test", "prueba trimestre", "prueba-trimestre"]
 # Fotos de prueba cuya etiqueta conviene quitar al jubilar la seccion
 FOTOS_PRUEBA = ["img_9001", "img_9002"]
 # Carpetas jubiladas donde pueden estar esas fotos de prueba
-CARPETAS_JUBILADAS = JUBILAR
+CARPETAS_JUBILADAS = ["legado", "t9test"]
+# Carpeta general de la galeria: aca llegan las fotos sacadas de Legado/Prueba
+DESTINO_GALERIA = FOTOS / "galeria"
+EXT_FOTOS = (".jpg", ".jpeg", ".png", ".webp")
 
 MARCA_AGUIO = """AVISO: no encontre herramientas/marca_agua.png. Preparar fotos
 avisa si falta; para convertir necesitas ahi tu logo PNG transparente."""
 
 
+def _normalizar(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(s).lower())
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def _es_carjeta_jubilada(nombre_carpeta):
+    """Reconoce cualquier variante real de las carpetas jubiladas:
+    legado/Legado/LEGADO, 'prueba trimestre', 't9test', 'prueba-trimestre', etc."""
+    n = _normalizar(nombre_carpeta)
+    return ("legado" in n) or ("prueba" in n and "trimestre" in n) or n == "t9test"
+
+
+def _destino_libre(nombre):
+    """fotos/galeria/<nombre>; si ya existe uno, agrega _1, _2... detras."""
+    destino = DESTINO_GALERIA / nombre
+    if not destino.exists():
+        return destino
+    p = Path(nombre)
+    i = 1
+    while True:
+        candidato = DESTINO_GALERIA / f"{p.stem}_{i}{p.suffix}"
+        if not candidato.exists():
+            return candidato
+        i += 1
+
+
+def mover_fotos_jubiladas():
+    """Mueve las fotos de galeria>legado y galeria>prueba trimestre hacia
+    la carpeta general fotos/galeria/. Idempotente: si no queda nada, no hace nada."""
+    import shutil
+    movidas, avisos = [], []
+    if FOTOS.is_dir():
+        for sub in sorted(FOTOS.iterdir()):
+            if not sub.is_dir() or not _es_carjeta_jubilada(sub.name):
+                continue
+            archivos = sorted(p for p in sub.iterdir()
+                              if p.is_file() and p.suffix.lower() in EXT_FOTOS)
+            if not archivos:
+                continue
+            DESTINO_GALERIA.mkdir(exist_ok=True)
+            for foto in archivos:
+                destino = _destino_libre(foto.name)
+                try:
+                    shutil.move(str(foto), str(destino))
+                    movidas.append(f"{sub.name}/{foto.name} -> galeria/{destino.name}")
+                except OSError as e:
+                    avisos.append(f"No pude mover {sub.name}/{foto.name}: {e}")
+    for m in movidas:
+        print("+ Foto migrada a la galería general: " + m)
+    for a in avisos:
+        print("AVISO: " + a)
+    if not movidas and not avisos:
+        print("No quedaban fotos en Legado / Prueba Trimestre (ya estaban en galeria).")
+    return len(avisos) == 0
+
+
 # ---------------------------------------------------------------- jubilacion --
 def _es_de_seccion(linea, claves):
     partes = [x.strip() for x in linea.split("|")]
-    return bool(partes) and partes[0].lower() in claves
+    return bool(partes) and partes[0].lower() in {c.lower() for c in claves}
 
 
 def jubilar():
     """Comenta las lineas de las secciones jubiladas (no mueve ni borra fotos)."""
     cambiados = []
-    claves = set(JUBILAR)
+    claves = {c.lower() for c in JUBILAR}
 
     if TRIM.exists():
         lineas = TRIM.read_text(encoding="utf-8").splitlines()
@@ -135,7 +198,7 @@ def jubilar():
 
 def revertir():
     """Descomenta las lineas JUBILADAS de las secciones (devuelve Legado/Prueba)."""
-    claves = set(JUBILAR)
+    claves = {c.lower() for c in JUBILAR}
     recuperadas = 0
     for ruta in [TRIM] + OTRAS + [ETIQ]:
         if not ruta.exists():
@@ -169,6 +232,9 @@ def regenerar_galeria():
 # --------------------------------------------------------------- parches (B) --
 def parche_webp(hechos):
     ruta = RAIZ / "assets" / "js" / "jfz.js"
+    if not ruta.exists():
+        print("AVISO (webp): no encontré assets/js/jfz.js en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     cambios = [
         ('f.replace(/\\.jpg$/i, "")', 'f.replace(/\\.(jpe?g|png|webp)$/i, "")'),
@@ -188,6 +254,9 @@ def parche_webp(hechos):
 
 def parche_galeria(hechos):
     ruta = RAIZ / "gallery.html"
+    if not ruta.exists():
+        print("AVISO (galería plus): no encontré gallery.html en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     pares = [
         ('<link href="assets/css/jfz.css" rel="stylesheet">', '<link href="assets/css/galeria-plus.css" rel="stylesheet">'),
@@ -211,6 +280,9 @@ LUPA = '<a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fo
 
 
 def _reemplazo(ruta, viejo, nuevo, etiqueta, hechos):
+    if not ruta.exists():
+        print(f"AVISO ({etiqueta}): no encontré el archivo {ruta.name} en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     if nuevo in s:
         return
@@ -278,8 +350,8 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
           <h2><i class="bi bi-tool"></i> Un solo botón para todo</h2>
           <p>Lo normal es usar <strong>una sola vez</strong> este botón: mete tus fotos terminadas en
             <code>por-procesar/&lt;trimestre&gt;/</code>, pulsa abajo y al terminar sube los cambios con GitHub Desktop.
-            La «Actualización definitiva» además dejó sin efecto las secciones antiguas
-            <strong>Legado</strong> y <strong>Prueba Trimestre</strong> (sin mover ninguna foto de la galería).</p>
+            La «Actualización definitiva» además <strong>movió las fotos de Legado y Prueba Trimestre a
+            <code>fotos/galeria/</code></strong> y dejó sin efecto esas dos secciones antiguas.</p>
           <div class="jfz-herr-botones">
             <a class="btn-get-started" href="actualizacion_definitiva.bat" download><i class="bi bi-play-circle"></i> Actualización definitiva (todo en uno)</a>
           </div>
@@ -291,7 +363,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
               <div class="jfz-serv">
                 <i class="bi bi-gear-wide-connected"></i>
                 <h3>Actualización definitiva</h3>
-                <p>Script único que jubila Legado y Prueba Trimestre, aplica los parches del sitio, consolida los botones y regenera la galería (<code>actualizacion_definitiva.py</code>). Con <code>--revertir</code> devuelve esas secciones.</p>
+                <p>Script único que mueve las fotos de Legado y Prueba Trimestre a <code>fotos/galeria/</code>, jubila esas secciones, aplica los parches del sitio, consolida los botones y regenera la galería (<code>actualizacion_definitiva.py</code>). Con <code>--revertir</code> devuelve esas secciones.</p>
                 <a class="jfz-svc-add" href="actualizacion_definitiva.py" download><i class="bi bi-download"></i> Descargar script</a>
               </div>
             </div>
@@ -370,11 +442,15 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
 def consolidar(hechos):
     """Equivalente a consolidar_sitio.py (parches del sitio, página de herramientas)."""
     # 1) Panel de herramientas: siempre se regenera (esta versión es la definitiva)
+    HERR.mkdir(exist_ok=True)
     pag = HERR / "index.html"
     pag.write_text(PAGINA_HERRAMIENTAS, encoding="utf-8")
     hechos.append("herramientas/index.html regenerada (panel actualizado)")
 
     jfz = RAIZ / "assets" / "js" / "jfz.js"
+    if not jfz.exists():
+        print("AVISO: no encontré assets/js/jfz.js en este proyecto; salto los parches del sitio. Avísale a Claude.")
+        return
 
     # 2) Menú: enlace "Herramientas" antes de Contacto (si no estaba ya)
     jfz_txt = jfz.read_text(encoding="utf-8")
@@ -455,9 +531,9 @@ BAT_DEFINITIVA = """@echo off
 rem ============================================================
 rem  "actualizacion_definitiva.bat" - EL BOTON UNICO de este sitio.
 rem  Doble clic y hace TODO el flujo automatico, en orden:
-rem    1) actualizacion_definitiva.py  (jubila Legado y Prueba Trimestre
-rem       SIN mover fotos, aplica los parches del sitio y consolida
-rem       los botones) + regenera la galeria
+rem    1) actualizacion_definitiva.py  (mueve las fotos de Legado y Prueba
+rem       Trimestre a fotos\\galeria, jubila esas secciones, aplica los parches
+rem       del sitio y consolida los botones) + regenera la galeria
 rem    2) preparar_fotos.py            (fotos nuevas -> WebP con marca
 rem       de agua; usa herramientas\\marca_agua.png)
 rem    3) actualizar_galeria.py        (regenera assets/js/fotos.js)
@@ -571,7 +647,8 @@ def limpiar_viejos(hechos):
 
 def crear_bat(hechos):
     bat = HERR / "actualizacion_definitiva.bat"
-    bat.write_text(BAT_DEFINITIVA, encoding="utf-8")
+    # CRLF real para que Windows lo ejecute bien al doble clic.
+    bat.write_bytes(BAT_DEFINITIVA.replace("\n", "\r\n").encode("utf-8"))
     hechos.append("Creado herramientas/actualizacion_definitiva.bat (el nuevo botón único)")
 
 
@@ -584,8 +661,9 @@ def main():
     if not (HERR / "marca_agua.png").exists():
         print(MARCA_AGUIO.replace("\n", " "))
 
-    # A) jubilar Legado y Prueba Trimestre (solo textos, las fotos no se mueven)
-    print("\n--- A) Jubilando secciones de la galería (sin mover fotos) ---")
+    # A) jubilar Legado y Prueba Trimestre (mover sus fotos a galeria + comentar textos)
+    print("\n--- A) Jubilando secciones de la galería (fotos -> fotos/galeria) ---")
+    mover_fotos_jubiladas()
     jubilar()
 
     # B) parches del sitio (webp + galería plus + consolidación)
@@ -626,8 +704,9 @@ def main():
 
     print()
     print('Listo: "Legado" y "Prueba Trimestre" dejaron de existir en la galería.')
-    print("Las fotos NO fueron movidas: si quieres retirarlas físicamente, copia lo que")
-    print("te interese a por-procesar/legado/ y borra fotos/Legado y fotos/t9test a mano.")
+    print("Las fotos que quedaban en esas carpetas fueron movidas a fotos/galeria/.")
+    print("Si quieres, borra con el explorador de Windows las carpetas jubiladas ya vacías")
+    print("(fotos/Legado y fotos/t9test): no afectan al sitio.")
     print('Para el día a día usa herramientas/"actualizacion_definitiva.bat" (doble clic).')
     return rc
 
