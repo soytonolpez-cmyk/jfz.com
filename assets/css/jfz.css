@@ -73,10 +73,22 @@ a:hover { color: var(--accent-hover); }
 .jfz-card > a { display: block; aspect-ratio: 4 / 5; overflow: hidden; background: #111; }
 .jfz-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
 .jfz-card:hover img { transform: scale(1.04); }
-.jfz-card figcaption { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; }
-.jfz-card figcaption span { font: 500 14px var(--nav-font); letter-spacing: .06em; color: rgba(255,255,255,.8); }
-.jfz-add { background: transparent; color: #fff; border: 1px solid var(--accent-color); border-radius: 999px; padding: 6px 14px; font: 500 13px var(--nav-font); white-space: nowrap; }
+.jfz-card figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; min-width: 0; }
+/* el nombre de la foto puede encogerse y cortarse con puntos suspensivos,
+   pero jamás empujar al botón fuera de la tarjeta */
+.jfz-card figcaption span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 14px var(--nav-font); letter-spacing: .06em; color: rgba(255,255,255,.8); }
+.jfz-add { flex: 0 0 auto; max-width: 100%; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: transparent; color: #fff; border: 1px solid var(--accent-color); border-radius: 999px; padding: 5px 10px; font: 500 12px var(--nav-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.jfz-add > i { flex: 0 0 auto; font-size: 13px; line-height: 1; }
+.jfz-add > span.txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .jfz-add:hover, .jfz-add.on { background: var(--accent-color); }
+/* en pantallas estrechas el botón se compacta: solo el ícono (con su título accesible),
+   así nunca se descuadra ni desaparece dentro de la tarjeta */
+@media (max-width: 575.98px) {
+  .jfz-card figcaption { gap: 6px; padding: 7px 8px; }
+  .jfz-card figcaption span { font-size: 12px; }
+  .jfz-add { padding: 5px 8px; }
+  .jfz-add > span.txt { display: none; }
+}
 
 /* Carrito */
 .jfz-panel { background: #0d0d0d; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 28px; }
