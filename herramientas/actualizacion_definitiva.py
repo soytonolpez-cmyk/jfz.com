@@ -55,12 +55,14 @@ TRIM = RAIZ / "fotos" / "trimestres.txt"
 OTRAS = [RAIZ / "fotos" / "fechas.txt"]
 ETIQ = RAIZ / "fotos" / "etiquetas.txt"
 
-# Secciones que dejan de existir en la galeria (se comparan en minusculas)
-JUBILAR = ["legado", "t9test"]          # t9test = "Prueba Trimestre"
+# Secciones que dejan de existir en la galeria (se comparan en minusculas).
+# Incluye todas las variantes reales con las que aparecen en trimestres.txt:
+# legado/Legado y t9test/"Prueba Trimestre"/prueba-trimestre.
+JUBILAR = ["legado", "Legado", "t9test", "prueba trimestre", "prueba-trimestre"]
 # Fotos de prueba cuya etiqueta conviene quitar al jubilar la seccion
 FOTOS_PRUEBA = ["img_9001", "img_9002"]
 # Carpetas jubiladas donde pueden estar esas fotos de prueba
-CARPETAS_JUBILADAS = JUBILAR
+CARPETAS_JUBILADAS = ["legado", "t9test"]
 # Carpeta general de la galeria: aca llegan las fotos sacadas de Legado/Prueba
 DESTINO_GALERIA = FOTOS / "galeria"
 EXT_FOTOS = (".jpg", ".jpeg", ".png", ".webp")
@@ -129,13 +131,13 @@ def mover_fotos_jubiladas():
 # ---------------------------------------------------------------- jubilacion --
 def _es_de_seccion(linea, claves):
     partes = [x.strip() for x in linea.split("|")]
-    return bool(partes) and partes[0].lower() in claves
+    return bool(partes) and partes[0].lower() in {c.lower() for c in claves}
 
 
 def jubilar():
     """Comenta las lineas de las secciones jubiladas (no mueve ni borra fotos)."""
     cambiados = []
-    claves = set(JUBILAR)
+    claves = {c.lower() for c in JUBILAR}
 
     if TRIM.exists():
         lineas = TRIM.read_text(encoding="utf-8").splitlines()
@@ -196,7 +198,7 @@ def jubilar():
 
 def revertir():
     """Descomenta las lineas JUBILADAS de las secciones (devuelve Legado/Prueba)."""
-    claves = set(JUBILAR)
+    claves = {c.lower() for c in JUBILAR}
     recuperadas = 0
     for ruta in [TRIM] + OTRAS + [ETIQ]:
         if not ruta.exists():
@@ -230,6 +232,9 @@ def regenerar_galeria():
 # --------------------------------------------------------------- parches (B) --
 def parche_webp(hechos):
     ruta = RAIZ / "assets" / "js" / "jfz.js"
+    if not ruta.exists():
+        print("AVISO (webp): no encontré assets/js/jfz.js en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     cambios = [
         ('f.replace(/\\.jpg$/i, "")', 'f.replace(/\\.(jpe?g|png|webp)$/i, "")'),
@@ -249,6 +254,9 @@ def parche_webp(hechos):
 
 def parche_galeria(hechos):
     ruta = RAIZ / "gallery.html"
+    if not ruta.exists():
+        print("AVISO (galería plus): no encontré gallery.html en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     pares = [
         ('<link href="assets/css/jfz.css" rel="stylesheet">', '<link href="assets/css/galeria-plus.css" rel="stylesheet">'),
@@ -272,6 +280,9 @@ LUPA = '<a class="jfz-buscabox" href="gallery.html#buscar" aria-label="Buscar fo
 
 
 def _reemplazo(ruta, viejo, nuevo, etiqueta, hechos):
+    if not ruta.exists():
+        print(f"AVISO ({etiqueta}): no encontré el archivo {ruta.name} en este proyecto. Avísale a Claude.")
+        return
     s = ruta.read_text(encoding="utf-8")
     if nuevo in s:
         return
@@ -431,11 +442,15 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
 def consolidar(hechos):
     """Equivalente a consolidar_sitio.py (parches del sitio, página de herramientas)."""
     # 1) Panel de herramientas: siempre se regenera (esta versión es la definitiva)
+    HERR.mkdir(exist_ok=True)
     pag = HERR / "index.html"
     pag.write_text(PAGINA_HERRAMIENTAS, encoding="utf-8")
     hechos.append("herramientas/index.html regenerada (panel actualizado)")
 
     jfz = RAIZ / "assets" / "js" / "jfz.js"
+    if not jfz.exists():
+        print("AVISO: no encontré assets/js/jfz.js en este proyecto; salto los parches del sitio. Avísale a Claude.")
+        return
 
     # 2) Menú: enlace "Herramientas" antes de Contacto (si no estaba ya)
     jfz_txt = jfz.read_text(encoding="utf-8")
@@ -632,7 +647,8 @@ def limpiar_viejos(hechos):
 
 def crear_bat(hechos):
     bat = HERR / "actualizacion_definitiva.bat"
-    bat.write_text(BAT_DEFINITIVA, encoding="utf-8")
+    # CRLF real para que Windows lo ejecute bien al doble clic.
+    bat.write_bytes(BAT_DEFINITIVA.replace("\n", "\r\n").encode("utf-8"))
     hechos.append("Creado herramientas/actualizacion_definitiva.bat (el nuevo botón único)")
 
 
