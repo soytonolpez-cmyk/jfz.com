@@ -506,6 +506,69 @@ pause
 """
 
 
+# Archivos que la "actualización definitiva" debe eliminar del proyecto.
+# Cualquier variante de nombre/tildes/espaceado que aparezca en el repo se borra,
+# EXCEPTO las piezas que quedan por diseño: preparar_fotos.py, marca_agua.png,
+# actualizar_galeria.py y pedido.ps1 (ver docstring arriba).
+A_BORRAR = [
+    "preparar_y_actualizar",   # .bat/.cmd/.ps1/.py
+    "preparar fotos",          # variantes con espacio del viejo lote
+    "parche_webp",             # .py/.bat (y su carpeta "pedido/parche_webp*" si existiera)
+    "parche_galeria",
+    "migrar_legado",
+    "marca agua",              # variantes con espacio (NO toca marca_agua.png)
+    "jubilar_legado",
+    "index",                   # paneles viejos: index.html/.bat fuera de herramientas/ NO;
+                               # solo herramientas/index.html y cualquier "index.bat" heredado
+    "consolidar_sitio",
+    "actualizar todo",         # .bat/.cmd/.ps1
+]
+
+def _norm(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s.lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return s.replace("_", "").replace(" ", "").replace("-", "")
+
+
+def limpiar_viejos(hechos):
+    """Elimina los archivos consolidados que todavia existan en el repo."""
+    BORrables_ext = {".bat", ".cmd", ".ps1", ".py"}
+    for ruta in sorted(RAIZ.rglob("*")):
+        if not ruta.is_file():
+            continue
+        rel_parts = [p.lower() for p in ruta.relative_to(RAIZ).parts[:-1]]
+        if ".git" in rel_parts or "node_modules" in rel_parts:
+            continue
+        stem = _norm(ruta.stem)
+        carpeta = _norm(ruta.parent.name)
+        es_index_panel = (ruta.name.lower() == "index.html" and ruta.parent == HERR)
+        ext_ok = ruta.suffix.lower() in BORrables_ext or es_index_panel
+        if not ext_ok:
+            continue
+        # protecciones: nunca borrar este script ni las piezas por diseño
+        if ruta.resolve() == Path(__file__).resolve():
+            continue
+        if stem in {"prepararfotos", "actualizargaleria", "actualizaciondefinitiva", "pedido", "pedidops"}:
+            continue
+        if stem == "marcaagua" and ruta.suffix.lower() == ".png":
+            continue
+        for patron in A_BORRAR:
+            p = _norm(patron)
+            if p == "index":
+                # solo herramientas/index.html y variantes "index.bat/.cmd/.ps1" heredadas
+                coincide = es_index_panel or (stem == "index" and ruta.suffix.lower() in {".bat", ".cmd", ".ps1"})
+            else:
+                coincide = stem == p or stem.startswith(p)
+            if coincide:
+                try:
+                    ruta.unlink()
+                    hechos.append(f"Eliminado {ruta.relative_to(RAIZ)} (consolidado en actualizacion_definitiva)")
+                except OSError as e:
+                    hechos.append(f"No pude borrar {ruta.relative_to(RAIZ)}: {e}")
+                break
+
+
 def crear_bat(hechos):
     bat = HERR / "actualizacion_definitiva.bat"
     bat.write_text(BAT_DEFINITIVA, encoding="utf-8")
@@ -543,12 +606,19 @@ def main():
     for h in hechos_bat:
         print("+ " + h)
 
-    # D) si todavia existiera algun boton unico heredado, lo reemplaza este script.
+    # D) eliminar de una vez todos los archivos consolidados que todavia existan
+    hechos_lim = []
+    limpiar_viejos(hechos_lim)
+    for h in hechos_lim:
+        print("+ " + h)
+    if not hechos_lim:
+        print("Limpieza: no quedaba ningún archivo viejo por eliminar.")
+    # (por las dudas, botones heredados también en la raiz del proyecto)
     for viejo_boton in ("preparar_y_actualizar.bat", "actualizar todo.bat"):
-        ruta_boton = HERR / viejo_boton
-        if ruta_boton.exists():
-            ruta_boton.unlink()
-            print(f"+ Eliminado el boton heredado {viejo_boton} (ahora existe actualizacion_definitiva.bat)")
+        for ruta_boton in (HERR / viejo_boton, RAIZ / viejo_boton):
+            if ruta_boton.exists():
+                ruta_boton.unlink()
+                print(f"+ Eliminado el boton heredado {ruta_boton.name} (ahora existe actualizacion_definitiva.bat)")
 
     # E) regenerar la galeria con las secciones ya jubiladas
     print("\n--- D) Regenerando assets/js/fotos.js ---")
