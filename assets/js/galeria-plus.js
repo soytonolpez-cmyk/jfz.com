@@ -67,7 +67,13 @@
     var s = S.filter(function (x) { return x.id === id; })[0];
     var d = s && s.fechas && s.fechas[f];
     if (d) { var p = d.split("-"); return +p[2] + " de " + MESES[+p[1] - 1] + " de " + p[0]; }
-    return s ? s.titulo : "";
+    /* Si la única sección se llama igual que la página («Galería»), el chip muestra
+       «Fotos» para no repetir el nombre dos veces en pantalla. */
+    if (s) {
+      var t = String(s.titulo).trim().toLowerCase();
+      return t === "galeria" ? "Fotos" : s.titulo;
+    }
+    return "";
   }
   function visible() {
     var best = null, bestTop = 1e9;

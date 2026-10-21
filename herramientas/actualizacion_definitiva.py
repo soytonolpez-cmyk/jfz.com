@@ -436,6 +436,7 @@ PAGINA_HERRAMIENTAS = """<!DOCTYPE html>
             <code>fotos/galeria/</code></strong> y dejó sin efecto esas dos secciones antiguas.</p>
           <div class="jfz-herr-botones">
             <a class="btn-get-started" href="actualizacion_definitiva.bat" download><i class="bi bi-play-circle"></i> Actualización definitiva (todo en uno)</a>
+            <a class="btn-get-started" href="mover_fotos_a_galeria.bat" download><i class="bi bi-folder2-open"></i> Mover mis fotos a la galería</a>
           </div>
           <p class="jfz-note">Si el navegador pregunta, elige «Abrir» o «Conservar». También puedes dar doble clic al archivo en tu explorador de carpetas.</p>
 
@@ -707,7 +708,7 @@ def limpiar_viejos(hechos):
         # protecciones: nunca borrar este script ni las piezas por diseño
         if ruta.resolve() == Path(__file__).resolve():
             continue
-        if stem in {"prepararfotos", "actualizargaleria", "actualizaciondefinitiva", "pedido", "pedidops"}:
+        if stem in {"prepararfotos", "actualizargaleria", "actualizaciondefinitiva", "moverfotosagaleria", "pedido", "pedidops"}:
             continue
         if stem == "marcaagua" and ruta.suffix.lower() == ".png":
             continue

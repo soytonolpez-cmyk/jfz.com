@@ -35,7 +35,11 @@
   function renderChrome() {
     var p = document.body.getAttribute("data-page") || "";
     var act = function (k) { return p === k ? ' class="active"' : ""; };
-    var sub = S.map(function (s) { return '<li><a href="gallery.html#' + s.id + '">' + esc(s.titulo) + "</a></li>"; }).join("");
+    /* A pedido del dueño: el menú «Galería» ya NO despliega una sub-opción con el
+       mismo nombre. Si una sección se llama igual que la página («Galería»), se omite;
+       las demás (trimestres, sesiones) siguen apareciendo en el desplegable. */
+    var sub = S.filter(function (s) { return String(s.titulo).trim().toLowerCase() !== "galeria" && String(s.id).toLowerCase() !== "galeria"; })
+      .map(function (s) { return '<li><a href="gallery.html#' + s.id + '">' + esc(s.titulo) + "</a></li>"; }).join("");
     var h = $("#header");
     if (h) h.innerHTML =
       '<div class="container-fluid position-relative d-flex align-items-center justify-content-between">' +
@@ -229,12 +233,19 @@
     if (lightbox) { try { lightbox.destroy(); } catch (e) {} }
     lightbox = GLightbox({ selector: sel || ".jfz-lightbox" });
   }
+  /* Título que se pinta en la pestaña/sección: si la única sección se llama igual
+     que la página («Galería»), no tiene sentido repetir ese cartel: se ve "Fotos". */
+  function tituloDeSeccion(s) {
+    var esGaleria = function (x) { return String(x).trim().toLowerCase() === "galeria"; };
+    if (esGaleria(s.titulo) && (S.length <= 1 || esGaleria(s.id))) return "Fotos";
+    return s.titulo;
+  }
   function renderGallery() {
     var box = $("#jfz-galeria"); if (!box) return;
     var tabs = $("#jfz-tabs");
-    tabs.innerHTML = '<button type="button" data-id="todos">Todos</button>' + S.map(function (s) { return '<button type="button" data-id="' + s.id + '">' + esc(s.titulo) + "</button>"; }).join("");
+    tabs.innerHTML = '<button type="button" data-id="todos">Todos</button>' + S.map(function (s) { return '<button type="button" data-id="' + s.id + '">' + esc(tituloDeSeccion(s)) + "</button>"; }).join("");
     box.innerHTML = buscadorHTML() + S.map(function (s) {
-      return '<section class="jfz-sec" data-id="' + s.id + '" id="sec-' + s.id + '"><h2 class="jfz-sec-title jfz-scroll-espia">' + esc(s.titulo) + ' <small>' + s.fotos.length + " fotos</small></h2>" +
+      return '<section class="jfz-sec" data-id="' + s.id + '" id="sec-' + s.id + '"><h2 class="jfz-sec-title jfz-scroll-espia">' + esc(tituloDeSeccion(s)) + ' <small>' + s.fotos.length + " fotos</small></h2>" +
         '<div class="row gy-4"></div></section>';
     }).join("");
     wireBuscador(box);
@@ -262,7 +273,7 @@
       var fila = secEl.querySelector(".row");
       fila.classList.add("jfz-mosaico");   // conserva el mosaico del CSS sin romper la animación plegable
       fila.innerHTML = visibles.length ? visibles.slice(0, LIMITE_SECCION).map(function (f) { return cardHTML(f, s.id, s.carpeta); }).join("") :
-        (hayFiltros() ? "" : '<p class="jfz-empty">Próximamente.</p>');
+        (hayFiltros() ? "" : '<p class="jfz-empty">' + (s.fotos.length ? "Ninguna foto con esos filtros." : "Próximamente: todavía no hay fotos en <code>fotos/" + esc(s.carpeta) + "/</code>. Ejecuta herramientas/actualizacion_definitiva.bat.") + "</p>");
       secEl.hidden = !(visibles.length || !hayFiltros());
       var small = secEl.querySelector(".jfz-sec-title small");
       if (small) small.textContent = hayFiltros() ? visibles.length + " de " + s.fotos.length + " fotos" : s.fotos.length + " fotos";
@@ -349,9 +360,15 @@
   }
   function renderFeatured() {
     var box = $("#jfz-destacadas"); if (!box) return;
-    var u = S.length ? S[S.length - 1] : null;
-    var all = u ? u.fotos.slice(0, 8) : [];
-    box.innerHTML = all.map(function (f) { return cardHTML(f, "inicio", u.carpeta); }).join("");
+    /* Destacadas: se recorre de la sección MÁS NUEVA a la más antigua (la última del
+       listado es la que se actualiza primero), y se toman fotos reales aunque alguna
+       sección venga vacía. Antes solo miraba la última y, si estaba vacía, no salía nada. */
+    var all = [];
+    for (var i = S.length - 1; i >= 0 && all.length < 8; i--) {
+      var s = S[i];
+      for (var j = 0; j < s.fotos.length && all.length < 8; j++) all.push({ f: s.fotos[j], carpeta: s.carpeta });
+    }
+    box.innerHTML = all.map(function (x) { return cardHTML(x.f, "inicio", x.carpeta); }).join("");
     wireAdd(box); initLightbox(); syncCart();
   }
 
