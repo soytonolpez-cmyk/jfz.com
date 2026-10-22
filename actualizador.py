@@ -59,6 +59,90 @@ except ImportError:
     rawpy = None
 try:
     import pillow_heif    # HEIC/HEIF de iPhone: py -m pip install pillow-heif
+
+"Añade barra de progreso tqdm con fallback a porcentaje en convertir_todas()"
+try:
+    from tqdm import tqdm  # barra de progreso: py -m pip install tqdm
+except ImportError:
+    tqdm = None            # si no esta instalada, se usa el fallback con print()
+
+
+def _barra_progreso(total, desc):
+    """Devuelve un iterable que muestra el avance sobre `total` elementos.
+
+    Con tqdm instalado: barra visual tipo [████░░░░░░] con porcentaje.
+    Sin tqdm (fallback): imprime 'Procesando X de Y (Z%) [████░░░░░░]' en cada paso.
+    En ambos casos se puede llamar a .close() al terminar.
+    """
+    if tqdm is not None:
+        return tqdm(range(total), desc=desc, unit="foto", ncols=80)
+
+    class _BarraSimple:
+        ANCHO = 10
+
+        def __init__(self, total_, desc_):
+            self.total = max(1, total_)
+            self.desc = desc_
+            self.n = 0
+
+        def __iter__(self):
+            for i in range(self.total):
+                yield i
+                self._avanzar()
+
+        def _avanzar(self):
+            self.n += 1
+            pct = int(self.n * 100 / self.total)
+            lleno = round(self.ANCHO * self.n / self.total)
+            barra = "#" * lleno + "-" * (self.ANCHO - lleno)
+            print(f"\r{self.desc}: Procesando {self.n} de {self.total} fotos "
+                  f"({pct}%) [{barra}]", end="", flush=True)
+
+        def close(self):
+            print()                        # salto de linea final del fallback
+
+    return _BarraSimple(total, desc)
+try:
+    from tqdm import tqdm  # barra de progreso: py -m pip install tqdm
+except ImportError:
+    tqdm = None            # si no esta instalada, se usa el fallback con print()
+
+
+def _barra_progreso(total, desc):
+    """Devuelve un iterable que muestra el avance sobre `total` elementos.
+
+    Con tqdm instalado: barra visual tipo [████░░░░░░] con porcentaje.
+    Sin tqdm (fallback): imprime 'Procesando X de Y (Z%) [████░░░░░░]' en cada paso.
+    En ambos casos se puede llamar a .close() al terminar.
+    """
+    if tqdm is not None:
+        return tqdm(range(total), desc=desc, unit="foto", ncols=80)
+
+    class _BarraSimple:
+        ANCHO = 10
+
+        def __init__(self, total_, desc_):
+            self.total = max(1, total_)
+            self.desc = desc_
+            self.n = 0
+
+        def __iter__(self):
+            for i in range(self.total):
+                yield i
+                self._avanzar()
+
+        def _avanzar(self):
+            self.n += 1
+            pct = int(self.n * 100 / self.total)
+            lleno = round(self.ANCHO * self.n / self.total)
+            barra = "#" * lleno + "-" * (self.ANCHO - lleno)
+            print(f"\r{self.desc}: Procesando {self.n} de {self.total} fotos "
+                  f"({pct}%) [{barra}]", end="", flush=True)
+
+        def close(self):
+            print()                        # salto de linea final del fallback
+
+    return _BarraSimple(total, desc)
 except ImportError:
     pillow_heif = None
 else:
@@ -862,7 +946,13 @@ def revelar_raw(origen, destino_jpg):
                     fecha = _normalizar_fecha(getattr(r.other, "capture_time", ""))
                 except Exception:
                     fecha = None
-        except Exception as e:
+        except Exception as e:            except Exception as e:
+                print(f"  ERROR con {f.name}: {e}")
+        try:
+            barra.close()                         # limpia la barra al terminar la carpeta
+        except Exception:
+            pass
+        for tmp in temporales:
             print(f"    AVISO: rawpy no pudo revelar {origen.name} ({e}); pruebo la via alternativa.")
     if jpg is None:                                           # via alternativa: Pillow
         try:
@@ -984,7 +1074,11 @@ def _existe_en_galeria(canon):
     return False
 
 
-def convertir_todas():
+def convertir_todas(        fallan_raw = []
+        barra = _barra_progreso(len(archivos), desc=f"Procesando carpeta '{clave}'")
+        for idx in barra:                         # tqdm o fallback con porcentaje
+            f = archivos[idx]
+            origen = f):
     POR_PROCESAR.mkdir(exist_ok=True)
     GALERIA.mkdir(parents=True, exist_ok=True)
     # Colectar TODAS las fotos de por-procesar/ (recursivo), sin exigir subcarpetas.
