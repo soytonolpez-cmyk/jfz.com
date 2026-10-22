@@ -6,8 +6,6 @@
   var MAPA = {};   // nombre de archivo -> ruta completa (carpeta del trimestre)
   S.forEach(function (s) { s.fotos.forEach(function (f) { if (!MAPA[f]) MAPA[f] = RUTA + s.carpeta + "/" + f; }); });
   var user = null, cart = [], pending = null, auth = null, fb = null, lightbox = null;
-  var ORIGINALES = "por-procesar";   // carpeta local donde viven los originales (RAW/JPG); se puede cambiar con window.JFZ_ORIGINALES
-  if (typeof window.JFZ_ORIGINALES === "string" && window.JFZ_ORIGINALES) ORIGINALES = window.JFZ_ORIGINALES;
   var demo = location.protocol === "file:" || !C.FIREBASE || !C.FIREBASE.apiKey || /PEGA/.test(C.FIREBASE.apiKey);
 
   /* ---------- utilidades ---------- */
@@ -535,25 +533,32 @@
     var url = "https://wa.me/" + C.WHATSAPP + "?text=" + encodeURIComponent(buildMessage(false));
     if (url.length > 1900) {
       url = "https://wa.me/" + C.WHATSAPP + "?text=" + encodeURIComponent(buildMessage(true));
-      toast("Pedido muy largo: el comando PowerShell no cabe en WhatsApp — usa el botón «Descargar pedido (.ps1)»");
+      toast("Pedido muy largo: el comando PowerShell no cabe en WhatsApp — se envió el pedido con los rangos de fotos");
     }
     window.open(url, "_blank", "noopener");
   }
 
   /* ---------- pedido: script PowerShell que copia los ORIGINALES del carrito ---------- */
-  // El sitio solo publica WebP; los RAW/CR2/JPG originales viven en tu PC dentro de por-procesar/.
+  // El sitio solo publica WebP; los RAW/CR2/JPG originales viven en el PC del dueño dentro de
+  //   C:\Users\Andres Vargas\OneDrive\Documentos\GitHub\jfz.com\por-procesar
+  // y se copian a
+  //   C:\Users\Andres Vargas\OneDrive\Documentos\Elementos de cami\Fotos pedidas
   // El comando PowerShell se arma con los nombres EXACTOS del carrito y viaja DENTRO del
   // mensaje de WhatsApp: el dueño solo copia el bloque y lo pega en una consola PowerShell.
   // Para pegar en PowerShell sin errores, el comando usa SOLO comillas dobles (los nombres
   // de archivo nunca llevan "), no lleva backticks ni llaves ${} (WhatsApp los come como
   // emojis) y evita los guiones bajos (Word Autocorrector los convierte en espacios al copiar).
+  var PS_ORIG = "C:\\Users\\Andres Vargas\\OneDrive\\Documentos\\GitHub\\jfz.com\\por-procesar";
+  if (typeof window.JFZ_PS_ORIG === "string" && window.JFZ_PS_ORIG) PS_ORIG = window.JFZ_PS_ORIG;
+  var PS_DEST = "C:\\Users\\Andres Vargas\\OneDrive\\Documentos\\Elementos de cami\\Fotos pedidas";
+  if (typeof window.JFZ_PS_DEST === "string" && window.JFZ_PS_DEST) PS_DEST = window.JFZ_PS_DEST;
   function psCmd() {
     var nombres = photos().map(base);
     if (!nombres.length) return "";
     var L = [];
-    L.push("# Pedido JFZ " + new Date().toISOString().slice(0, 10) + " - copia los ORIGINALES (RAW/CR2/JPG) del carrito a una carpeta de entrega");
-    L.push("$orig = Read-Host 'Ruta de la carpeta de originales (ej. C:\\Users\\TuUsuario\\Pictures\\" + ORIGINALES + ")'");
-    L.push("$dest = Join-Path $orig ('pedido-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))");
+    L.push("# Pedido JFZ " + new Date().toISOString().slice(0, 10) + " - copia los ORIGINALES (RAW/CR2/JPG) a la carpeta de entrega");
+    L.push('$orig = "' + PS_ORIG + '"');
+    L.push('$dest = "' + PS_DEST + '\\pedido-" + (Get-Date -Format "yyyyMMdd-HHmmss")');
     L.push("New-Item -ItemType Directory -Force -Path $dest | Out-Null");
     L.push("$lista = @(" + nombres.map(function (n) { return '"' + n + '"'; }).join(", ") + ")");
     L.push("$ok = 0; $faltan = @()");
@@ -599,19 +604,10 @@
     if (ph.length) L.push("Fotos: " + t.n + " x " + money(t.u) + " = " + money(t.fotos));
     L.push("Total: " + money(t.total) + (t.conv ? " + servicios a convenir" : ""));
     if (sv.some(function (s) { return s.aviso; })) L.push("", "✔ Acepto las condiciones de las sesiones indicadas en el sitio.");
-    if (ph.length) L.push("", "COMANDO POWERSHELL (copiar y pegar tal cual en una consola):", psCmd());
+    // 3 líneas en blanco antes del código: al copiar y pegar en WhatsApp se ve separado
+    // visualmente del resto del mensaje.
+    if (ph.length) L.push("", "Copia y pega lo siguiente en una consola PowerShell:", "", "", "", psCmd());
     return L.join("\n");
-  }
-  function downloadPedidoPs1() {
-    if (!photos().length) { toast("El carrito no tiene fotos todavía"); return; }
-    var txt = psCmd().replace(/\n/g, "\r\n") + "\r\n";
-    var blob = new Blob(["\uFEFF" + txt], { type: "text/plain;charset=utf-8" }); // BOM: PowerShell lee bien los acentos
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "pedido_jfz.ps1";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-    toast("pedido_jfz.ps1 descargado — guárdalo en la carpeta de las originales y ejecútalo con: powershell -ExecutionPolicy Bypass -File pedido_jfz.ps1");
   }
   function renderCartPage() {
     var box = $("#jfz-carrito"); if (!box) return;
@@ -638,13 +634,11 @@
       (svcs().length ? '<div class="jfz-line"><span>Servicios</span><span>' + money(t.sv) + (t.conv ? " + a convenir" : "") + '</span></div>' : "") +
       '<div class="jfz-line jfz-total"><span>Total</span><span>' + money(t.total) + '</span></div>' +
       '<button type="button" class="btn-get-started w-100" id="jfz-send"><i class="bi bi-whatsapp"></i> Enviar pedido por WhatsApp</button>' +
-      (ph.length ? '<button type="button" class="jfz-btn-ps1 w-100" id="jfz-ps1"><i class="bi bi-terminal"></i> Descargar pedido (.ps1)</button>' +
-        '<p class="jfz-note">El comando <strong>PowerShell</strong> con los nombres exactos de estas fotos viaja dentro del mensaje de WhatsApp: solo cópialo y pégalo en una consola. El botón .ps1 es el respaldo, por si el pedido es muy largo y el comando no cabe en el chat.</p>' : "") +
+      (ph.length ? '<p class="jfz-note">El comando <strong>PowerShell</strong> con los nombres exactos de estas fotos viaja dentro del mensaje de WhatsApp: solo cópialo y pégalo en una consola.</p>' : "") +
       '<button type="button" class="jfz-link" id="jfz-clear">Vaciar carrito</button>' +
       '<p class="jfz-note">El pago y la entrega se acuerdan por WhatsApp. Cuantas más fotos, menor el precio por foto.</p></div></div></div>';
     $$(".jfz-rm", box).forEach(function (b) { b.addEventListener("click", function () { remove(b.getAttribute("data-f")); }); });
     $("#jfz-send").addEventListener("click", sendWhatsApp);
-    var pb = $("#jfz-ps1"); if (pb) pb.addEventListener("click", downloadPedidoPs1);
     $("#jfz-clear").addEventListener("click", function () { if (confirm("¿Vaciar el carrito?")) clearCart(); });
   }
 
