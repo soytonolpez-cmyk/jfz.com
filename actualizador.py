@@ -19,26 +19,9 @@ QUE HACE (en orden):
      registran solas en fotos/fechas.txt.
   D) ESPEJO EXACTO (a pedido): despues de convertir, fotos/galeria/ queda con
      EXACTAMENTE la misma cantidad, numeros y nombres de archivos que haya en
-     por-procesar/, todos en formato .webp:
-       - cada foto de por-procesar/ (ej. IMG_6001.jpg o t4/IMG_6001.CR2) debe
-         terminar existiendo en fotos/galeria/ como IMG_6001.webp; si no se
-         pudo convertir, se avisa en pantalla;
-       - cualquier archivo de fotos/galeria/ que NO corresponda a una foto de
-         por-procesar/ se elimina (sobrantes de otras extensiones y .webp con
-         sufijo _1, _2... duplicados);
-       - los nombres se igualan: si por-procesar tiene IMG_6001.CR2 y la galeria
-         tenia ese numero guardado como IMG_6001_1.webp, se renombra a
-         IMG_6001.webp.
-     Proteccion: si por-procesar esta VACIO no se borra nada (asi tus fotos no
-     dependen de que la carpeta local exista; es la unica salvaguarda deliberada).
-  E) REGENERA assets/js/fotos.js (los numeros/nombres/cantidad de webp que ve
-     el sitio son exactamente los de fotos/galeria/, o sea los de por-procesar/).
-  F) LIMPIEZA: elimina los viejos "actualizacion definitiva 1/2/3.py", toda la
-     carpeta herramientas/ y demas archivos consolidados (guarda marca_agua.png
-     en la raiz antes de borrarla).
-
-FLUJO DIARIO: mete tus fotos en por-procesar\\ -> doble clic a
-"actualizacion definitive.bat" -> GitHub Desktop: Commit to main + Push origin.
+     por-procesar/, todos en formato .webp.
+  E) REGENERA assets/js/fotos.js.
+  F) LIMPIEZA: elimina los viejos archivos consolidados.
 """
 import json
 import re
@@ -53,114 +36,62 @@ try:
 except ImportError:
     Image = ImageOps = None
     print('AVISO: falta Pillow (py -m pip install Pillow). La conversion de fotos no funcionara sin ella.')
+
 try:
     import rawpy          # revelado RAW: py -m pip install rawpy
 except ImportError:
     rawpy = None
+
 try:
     import pillow_heif    # HEIC/HEIF de iPhone: py -m pip install pillow-heif
-
-"Añade barra de progreso tqdm con fallback a porcentaje en convertir_todas()"
-try:
-    from tqdm import tqdm  # barra de progreso: py -m pip install tqdm
-except ImportError:
-    tqdm = None            # si no esta instalada, se usa el fallback con print()
-
-
-def _barra_progreso(total, desc):
-    """Devuelve un iterable que muestra el avance sobre `total` elementos.
-
-    Con tqdm instalado: barra visual tipo [████░░░░░░] con porcentaje.
-    Sin tqdm (fallback): imprime 'Procesando X de Y (Z%) [████░░░░░░]' en cada paso.
-    En ambos casos se puede llamar a .close() al terminar.
-    """
-    if tqdm is not None:
-        return tqdm(range(total), desc=desc, unit="foto", ncols=80)
-
-    class _BarraSimple:
-        ANCHO = 10
-
-        def __init__(self, total_, desc_):
-            self.total = max(1, total_)
-            self.desc = desc_
-            self.n = 0
-
-        def __iter__(self):
-            for i in range(self.total):
-                yield i
-                self._avanzar()
-
-        def _avanzar(self):
-            self.n += 1
-            pct = int(self.n * 100 / self.total)
-            lleno = round(self.ANCHO * self.n / self.total)
-            barra = "#" * lleno + "-" * (self.ANCHO - lleno)
-            print(f"\r{self.desc}: Procesando {self.n} de {self.total} fotos "
-                  f"({pct}%) [{barra}]", end="", flush=True)
-
-        def close(self):
-            print()                        # salto de linea final del fallback
-
-    return _BarraSimple(total, desc)
-try:
-    from tqdm import tqdm  # barra de progreso: py -m pip install tqdm
-except ImportError:
-    tqdm = None            # si no esta instalada, se usa el fallback con print()
-
-
-def _barra_progreso(total, desc):
-    """Devuelve un iterable que muestra el avance sobre `total` elementos.
-
-    Con tqdm instalado: barra visual tipo [████░░░░░░] con porcentaje.
-    Sin tqdm (fallback): imprime 'Procesando X de Y (Z%) [████░░░░░░]' en cada paso.
-    En ambos casos se puede llamar a .close() al terminar.
-    """
-    if tqdm is not None:
-        return tqdm(range(total), desc=desc, unit="foto", ncols=80)
-
-    class _BarraSimple:
-        ANCHO = 10
-
-        def __init__(self, total_, desc_):
-            self.total = max(1, total_)
-            self.desc = desc_
-            self.n = 0
-
-        def __iter__(self):
-            for i in range(self.total):
-                yield i
-                self._avanzar()
-
-        def _avanzar(self):
-            self.n += 1
-            pct = int(self.n * 100 / self.total)
-            lleno = round(self.ANCHO * self.n / self.total)
-            barra = "#" * lleno + "-" * (self.ANCHO - lleno)
-            print(f"\r{self.desc}: Procesando {self.n} de {self.total} fotos "
-                  f"({pct}%) [{barra}]", end="", flush=True)
-
-        def close(self):
-            print()                        # salto de linea final del fallback
-
-    return _BarraSimple(total, desc)
-except ImportError:
-    pillow_heif = None
-else:
     try:
         pillow_heif.register_heif_opener()
     except Exception:
         pass
+except ImportError:
+    pillow_heif = None
+
+# =========================================================================
+# BARRA DE PROGRESO: tqdm con fallback seguro a porcentaje
+# =========================================================================
+try:
+    from tqdm import tqdm
+    _HAS_TQDM = True
+except ImportError:
+    _HAS_TQDM = False
+    tqdm = None
+
+def _barra_progreso(total, desc):
+    """Devuelve un iterable que muestra el avance sobre `total` elementos."""
+    if _HAS_TQDM:
+        return tqdm(range(total), desc=desc, unit="item", ncols=80)
+
+    class _BarraSimple:
+        ANCHO = 10
+        def __init__(self, total_, desc_):
+            self.total = max(1, total_)
+            self.desc = desc_
+            self.n = 0
+
+        def __iter__(self):
+            for i in range(self.total):
+                yield i
+                self._avanzar()
+
+        def _avanzar(self):
+            self.n += 1
+            pct = int(self.n * 100 / self.total)
+            lleno = round(self.ANCHO * self.n / self.total)
+            barra = "█" * lleno + "░" * (self.ANCHO - lleno)
+            print(f"\r{self.desc}: Procesando {self.n} de {self.total} ({pct}%) [{barra}]", end="", flush=True)
+
+        def close(self):
+            print()  # salto de linea final del fallback
+
+    return _BarraSimple(total, desc)
+# =========================================================================
 
 # RAIZ = carpeta del proyecto (este script vive en la raiz).
-RAIZ = Path(__file__).resolve().parent
-HERR = RAIZ / "herramientas"   # vieja carpeta de herramientas (se elimina en la limpieza)
-
-
-import re
-import shutil
-import sys
-from pathlib import Path
-
 RAIZ = Path(__file__).resolve().parent
 HERR = RAIZ / "herramientas"
 FOTOS = RAIZ / "fotos"
@@ -168,18 +99,11 @@ TRIM = RAIZ / "fotos" / "trimestres.txt"
 OTRAS = [RAIZ / "fotos" / "fechas.txt"]
 ETIQ = RAIZ / "fotos" / "etiquetas.txt"
 
-# Secciones que dejan de existir en la galeria (se comparan en minusculas).
-# Incluye todas las variantes reales con las que aparecen en trimestres.txt:
-# legado/Legado y t9test/"Prueba Trimestre"/prueba-trimestre.
 JUBILAR = ["legado", "Legado", "t9test", "prueba trimestre", "prueba-trimestre"]
-# Fotos de prueba cuya etiqueta conviene quitar al jubilar la seccion
 FOTOS_PRUEBA = ["img_9001", "img_9002"]
-# Carpetas jubiladas donde pueden estar esas fotos de prueba
 CARPETAS_JUBILADAS = ["legado", "t9test"]
-# Carpeta general de la galeria: aca llegan las fotos sacadas de Legado/Prueba
 DESTINO_GALERIA = FOTOS / "galeria"
 EXT_FOTOS = (".jpg", ".jpeg", ".png", ".webp")
-# Tambien se mueven (y convierten a JPG) los formatos que el navegador no muestra.
 EXT_EXTRA = (".heic", ".heif", ".tif", ".tiff")
 
 MARCA_AGUIO = """AVISO: no encontre marca_agua.png (quedo duplicado en la raiz y en
@@ -193,29 +117,23 @@ def _normalizar(s):
 
 
 def _es_carjeta_jubilada(nombre_carpeta):
-    """Reconoce cualquier variante real de las carpetas jubiladas:
-    legado/Legado/LEGADO, 'prueba trimestre', 't9test', 'prueba-trimestre', etc."""
     n = _normalizar(nombre_carpeta)
     return ("legado" in n) or ("prueba" in n and "trimestre" in n) or n == "t9test"
 
 
-# Extensiones de imagen que reconoce el navegador (para renombrar al mover).
 EXT_NAVEGADOR = (".jpg", ".jpeg", ".png", ".webp")
 
 
 def _renombrar_para_navegador(nombre):
-    """Si la foto jubilada viene en un formato que el navegador no muestra
-    (HEIC de iPhone, TIFF...), se convierte al moverla a fotos/galeria/ con
-    extension .jpg. Si ya es jpg/png/webp, se deja igual."""
     p = Path(nombre)
     if p.suffix.lower() in EXT_NAVEGADOR:
         return nombre
     try:
-        from PIL import Image  # lectura suave: si falta Pillow, se mueve igual
+        from PIL import Image
     except ImportError:
         return nombre
     try:
-        import pillow_heif     # HEIC/HEIF de iPhone (opcional)
+        import pillow_heif
     except ImportError:
         pillow_heif = None
     if pillow_heif is not None:
@@ -225,15 +143,13 @@ def _renombrar_para_navegador(nombre):
             pass
     try:
         with Image.open(p) as im:
-            im.verify()        # solo comprobar que es una imagen legible
+            im.verify()
     except Exception:
-        return nombre          # no se puede leer: se mueve tal cual
+        return nombre
     return p.stem + ".jpg"
 
 
 def _convertir_a_jpg(origen, destino):
-    """Revela/redimensiona una foto que el navegador no muestra (HEIC, TIFF...)
-    y la guarda como JPG en destino. Devuelve True si lo logr6."""
     try:
         from PIL import Image, ImageOps
     except ImportError:
@@ -250,17 +166,17 @@ def _convertir_a_jpg(origen, destino):
                 im.thumbnail((LADO_MAXIMO_FOTO, LADO_MAXIMO_FOTO))
             if im.mode in ("RGBA", "P", "LA"):
                 im = im.convert("RGB")
-            im.save(destino, "JPEG", quality=85)
+            # CAMBIO: Calidad reducida a 70
+            im.save(destino, "JPEG", quality=70)
         return True
     except Exception:
         return False
 
 
-LADO_MAXIMO_FOTO = 1920  # mismo tope que preparar_fotos.py al convertir jubiladas
+LADO_MAXIMO_FOTO = 1920
 
 
 def _destino_libre(nombre):
-    """fotos/galeria/<nombre>; si ya existe uno, agrega _1, _2... detras."""
     nombre = _renombrar_para_navegador(nombre)
     destino = DESTINO_GALERIA / nombre
     if not destino.exists():
@@ -275,13 +191,9 @@ def _destino_libre(nombre):
 
 
 def _mover_a_galeria(origen, destino_base):
-    """Mueve un archivo a fotos/galeria/ (renombrando si hay choque o si el
-    navegador no muestra el formato). Devuelve el texto del registro o None."""
-    import shutil
     destino = _destino_libre(destino_base or origen.name)
     try:
         if destino.suffix.lower() == ".jpg" and origen.suffix.lower() not in EXT_FOTOS:
-            # HEIC/TIFF: el navegador no lo muestra -> se convierte a JPG
             if _convertir_a_jpg(origen, destino):
                 origen.unlink()
                 return f"{origen.parent.name}/{origen.name} -> galeria/{destino.name} (convertida a JPG)"
@@ -294,15 +206,10 @@ def _mover_a_galeria(origen, destino_base):
 
 
 def ordenar_fotos():
-    """Recoge las fotos que esten SUELTAS dentro de fotos/ (y subcarpetas no
-    jubiladas, como t4/) y las mueve a la carpeta general fotos/galeria/.
-    Asi la galeria siempre muestra TODO: es la unica seccion que existe ahora.
-    Idempotente: si no queda nada suelto, no hace nada."""
     movidas, avisos = [], []
     if not FOTOS.is_dir():
         return movidas, avisos
     DESTINO_GALERIA.mkdir(exist_ok=True)
-    # 1) archivos sueltos directamente en fotos/ (cualquier extension de foto)
     for p in sorted(FOTOS.iterdir()):
         if not p.is_file() or p.suffix.lower() not in (EXT_FOTOS + EXT_EXTRA):
             continue
@@ -311,7 +218,6 @@ def ordenar_fotos():
             avisos.append(f"No pude mover {p.name}: {res[10:]}")
         elif res:
             movidas.append(res)
-    # 2) fotos dentro de subcarpetas que NO sean galeria ni estar jubiladas
     for sub in sorted(FOTOS.iterdir()):
         if not sub.is_dir() or _normalizar(sub.name) == "galeria" or _es_carjeta_jubilada(sub.name):
             continue
@@ -323,7 +229,6 @@ def ordenar_fotos():
                 avisos.append(f"No pude mover {sub.name}/{p.name}: {res[10:]}")
             elif res:
                 movidas.append(res)
-        # eliminar la subcarpeta si quedo vacia (solo carpetas, conservo los .txt)
         try:
             if sub.is_dir() and not any(sub.iterdir()):
                 sub.rmdir()
@@ -333,8 +238,6 @@ def ordenar_fotos():
 
 
 def mover_fotos_jubiladas():
-    """Mueve las fotos de galeria>legado y galeria>prueba trimestre hacia
-    la carpeta general fotos/galeria/. Idempotente: si no queda nada, no hace nada."""
     movidas, avisos = [], []
     if FOTOS.is_dir():
         for sub in sorted(FOTOS.iterdir()):
@@ -360,14 +263,12 @@ def mover_fotos_jubiladas():
     return len(avisos) == 0
 
 
-# ---------------------------------------------------------------- jubilacion --
 def _es_de_seccion(linea, claves):
     partes = [x.strip() for x in linea.split("|")]
     return bool(partes) and partes[0].lower() in {c.lower() for c in claves}
 
 
 def jubilar():
-    """Comenta las lineas de las secciones jubiladas (no mueve ni borra fotos)."""
     cambiados = []
     claves = {c.lower() for c in JUBILAR}
 
@@ -379,8 +280,6 @@ def jubilar():
                 nueva.append("# JUBILADO (antes en la galería): " + ln)
             else:
                 nueva.append(ln)
-        # Si nadie activo "galeria" como seccion propia, se agrega al final para
-        # que las fotos jubiladas que ahora viven en fotos/galeria/ se vean.
         if not any(_es_de_seccion(l.strip(), ["galeria"]) for l in nueva
                    if l.strip() and not l.strip().startswith("#")):
             nueva.append("galeria | Galería")
@@ -409,8 +308,6 @@ def jubilar():
             ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
             cambiados.append(f"{ruta.name}: reglas de las secciones jubiladas comentadas")
 
-    # etiquetas.txt: quitar SOLO las lineas de las fotos de prueba (si existen);
-    # las demas etiquetas (moto/casco/caras) se conservan tal cual.
     if ETIQ.exists():
         ls = ETIQ.read_text(encoding="utf-8").splitlines()
         out, quitadas = [], 0
@@ -435,7 +332,6 @@ def jubilar():
 
 
 def revertir():
-    """Descomenta las lineas JUBILADAS de las secciones (devuelve Legado/Prueba)."""
     claves = {c.lower() for c in JUBILAR}
     recuperadas = 0
     for ruta in [TRIM] + OTRAS + [ETIQ]:
@@ -452,8 +348,6 @@ def revertir():
                     recuperadas += 1
                     continue
             out.append(ln)
-        # Si la seccion «galeria» es la que agrego esta herramienta (linea sin
-        # tocar), al devolver Legado/Prueba se quita para no duplicar fotos.
         if recuperadas and ruta == TRIM:
             out = [l for l in out if not _es_de_seccion(l.strip(), ["galeria"]) or l.strip().startswith("#")]
         ruta.write_text("\n".join(out) + "\n", encoding="utf-8")
@@ -463,7 +357,6 @@ def revertir():
     return 0
 
 
-# --------------------------------------------------------------- parches (B) --
 def parche_webp(hechos):
     ruta = RAIZ / "assets" / "js" / "jfz.js"
     if not ruta.exists():
@@ -527,16 +420,7 @@ def _reemplazo(ruta, viejo, nuevo, etiqueta, hechos):
     hechos.append(etiqueta)
 
 
-# (Pagina herramientas/index.html ELIMINADA a pedido: era una opcion inutil y quedo
-# oculta del sitio. Antes vivia en la constante PAGINA_HERRAMIENTAS; ahora ni se
-# genera ni se enlaza, y la carpeta herramientas/ se borra en limpiar_viejos.)
-
-
 def consolidar(hechos):
-    """Equivalente a consolidar_sitio.py (parches del sitio; sin pagina de herramientas)."""
-    # 1) La pagina de herramientas quedo OCULTA a pedido (pagina inutil): ya no se
-    #    regenera herramientas/index.html; la carpeta herramientas/ se elimina en la
-    #    limpieza (ver limpiar_viejos). Si existiera un panel viejo, se quita.
     pag = HERR / "index.html"
     if pag.exists():
         try:
@@ -550,8 +434,6 @@ def consolidar(hechos):
         print("AVISO: no encontré assets/js/jfz.js en este proyecto; salto los parches del sitio. Avísale a Claude.")
         return
 
-    # 2) Menu: el enlace "Herramientas" queda OCULTO a pedido (pagina inutil);
-    #    si una version anterior del boton lo hubiera agregado, se quita ahora.
     jfz_txt = jfz.read_text(encoding="utf-8")
     if 'herramientas/index.html' in jfz_txt:
         nav_linea = None
@@ -560,7 +442,6 @@ def consolidar(hechos):
                 nav_linea = ln
                 break
         if nav_linea is not None:
-            # quitar la linea del <li> y tambien el "+ " colgante de la linea anterior
             lineas = jfz_txt.splitlines(keepends=True)
             out = []
             for i, ln in enumerate(lineas):
@@ -573,20 +454,16 @@ def consolidar(hechos):
             jfz.write_text(jfz_txt, encoding="utf-8")
             hechos.append("Menu: enlace «Herramientas» quitado (oculto a pedido)")
 
-    # la lupa ya NO va en el header: si estaba puesta, se quita (buscador oculto a pedido)
     s = jfz.read_text(encoding="utf-8")
     if LUPA in s:
         jfz.write_text(s.replace(LUPA, "", 1), encoding="utf-8")
         hechos.append("Header: lupa de búsqueda quitada (buscador oculto a pedido)")
 
-    # 3) index.html: "Ver galería completa" apunta a la galeria normal
     _reemplazo(RAIZ / "index.html",
                '<a href="gallery.html#buscar" class="btn-get-started">Ver galería completa</a>',
                '<a href="gallery.html" class="btn-get-started">Ver galería completa</a>',
                "index.html: «Ver galería completa» apunta a la galería normal", hechos)
 
-    # 4) gallery.html: el enlace a Herramientas queda OCULTO a pedido (pagina
-    #    inutil); si una version anterior lo hubiera agregado activo, se quita.
     gal = RAIZ / "gallery.html"
     gtxt = gal.read_text(encoding="utf-8")
     if re.search(r'^\s*<div class="jfz-tabs-linea">.*herramientas/index\.html.*</div>\s*\n', gtxt, re.M):
@@ -594,7 +471,6 @@ def consolidar(hechos):
         gal.write_text(gtxt, encoding="utf-8")
         hechos.append("gallery.html: enlace a Herramientas quitado (oculto a pedido)")
 
-    # 5) jfz.js: llegar con #buscar enfoca el buscador
     s = jfz.read_text(encoding="utf-8")
     if 'hash === "#buscar"' not in s:
         viejo_fin = 'window.addEventListener("hashchange", showTab);'
@@ -605,8 +481,6 @@ def consolidar(hechos):
         else:
             print('AVISO (#buscar): no encontré "hashchange" en jfz.js. Avísale a Claude.')
 
-    # 6) Pie de pagina: el enlace a Herramientas queda OCULTO a pedido; si una
-    #    version anterior lo hubiera agregado, se quita ahora.
     s = jfz.read_text(encoding="utf-8")
     if "jfz-pie-herr" in s:
         s2 = re.sub(r"'<div class=\"jfz-pie-herr\">.*?</div>' \+ *\\n *", "", s)
@@ -614,7 +488,6 @@ def consolidar(hechos):
             jfz.write_text(s2, encoding="utf-8")
             hechos.append("Pie de pagina: enlace a Herramientas quitado (oculto a pedido)")
 
-    # 7) jfz.css: estilos de los paneles de herramientas
     css = RAIZ / "assets" / "css" / "jfz.css"
     extra_css = """
 /* ---- botones consolidados (header + página de herramientas) ---- */
@@ -640,29 +513,15 @@ def consolidar(hechos):
 BAT_DEFINITIVA = """@echo off
 rem ============================================================
 rem  "actualizacion definitive.bat" - EL BOTON UNICO de este sitio.
-rem  Vive en la RAIZ del proyecto (junto a las fotos y las paginas).
-rem  Doble clic y hace TODO el flujo automatico de una sola vez:
-rem    python actualizador.py  ->  ordena fotos\\, aplica los parches
-rem    del sitio, convierte por-procesar\\ a WebP con marca de agua,
-rem    deja fotos\\galeria\\ como ESPEJO EXACTO de por-procesar\\
-rem    (los mismos numeros, nombres y cantidad de archivos .webp)
-rem    y regenera assets\\js\\fotos.js
-rem  Despues: GitHub Desktop -> Commit to main -> Push origin.
-rem  Tambien sirve para ejecutar solo UNA pieza intermedia:
-rem    "actualizacion definitive.bat" 1  -> solo orden + parches
-rem    "actualizacion definitive.bat" 2  -> hasta convertir/espejar fotos
-rem    "actualizacion definitive.bat" 3  -> todo el flujo (por defecto)
 rem ============================================================
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 set PYTHONIOENCODING=utf-8
 cd /d "%~dp0"
 
-rem --- elige el interprete de Python (py = el lanzador de Windows; si no, python) ---
 set PY=py
 where py >nul 2>nul || set PY=python
 
-rem --- paso final por defecto: 3 = todo el flujo; acepta un numero como argumento ---
 set PASO_FINAL=3
 if not "%~1"=="" (
   echo %~1| findstr /r "^[1-3]$" >nul && set PASO_FINAL=%~1
@@ -675,27 +534,11 @@ echo Cuando termine: abre GitHub Desktop, escribe un titulo y pulsa "Commit to m
 pause
 """
 
-
-# Archivos que la "actualización definitiva" debe eliminar del proyecto.
-# Cualquier variante de nombre/tildes/espaceado que aparezca en el repo se borra,
-# EXCEPTO las piezas que quedan por diseño: preparar_fotos.py, marca_agua.png,
-# actualizar_galeria.py y pedido.ps1 (ver docstring arriba).
 A_BORRAR = [
-    "preparar_y_actualizar",   # .bat/.cmd/.ps1/.py
-    "preparar fotos",          # variantes con espacio del viejo lote
-    "parche_webp",             # .py/.bat (y su carpeta "pedido/parche_webp*" si existiera)
-    "parche_galeria",
-    "migrar_legado",
-    "marca agua",              # variantes con espacio (NO toca marca_agua.png)
-    "jubilar_legado",
-    "index",                   # paneles viejos: SOLO herramientas/index.html (oculto a
-                               # pedido por inutil) y cualquier "index.bat" heredado
-    "consolidar_sitio",
-    "actualizar todo",         # .bat/.cmd/.ps1
-    "mover_fotos_a_galeria",   # incluido en el flujo del boton unico (el paso 2 ya guarda en galeria)
-    "actualizacion definitive 1",  # los tres pasos quedaron consolidados en actualizador.py
-    "actualizacion definitive 2",
-    "actualizacion definitive 3",
+    "preparar_y_actualizar", "preparar fotos", "parche_webp", "parche_galeria",
+    "migrar_legado", "marca agua", "jubilar_legado", "index", "consolidar_sitio",
+    "actualizar todo", "mover_fotos_a_galeria", "actualizacion definitive 1",
+    "actualizacion definitive 2", "actualizacion definitive 3",
 ]
 
 def _norm(s):
@@ -705,7 +548,6 @@ def _norm(s):
 
 
 def limpiar_viejos(hechos):
-    """Elimina los archivos consolidados que todavia existan en el repo."""
     BORrables_ext = {".bat", ".cmd", ".ps1", ".py"}
     for ruta in sorted(RAIZ.rglob("*")):
         if not ruta.is_file():
@@ -715,33 +557,22 @@ def limpiar_viejos(hechos):
             continue
         stem = _norm(ruta.stem)
         carpeta = _norm(ruta.parent.name)
-        # Los VIEJOS "actualizacion definitive 1/2/3.py" ahora SI se borran:
-        # quedaron consolidados en este unico script (actualizador.py). La tilde
-        # de "actualización" se normaliza aqui para detectar tambien esa variante.
         if re.search(r"definitiv[ae][123]", stem):
-            pass                                # es uno de los tres pasos viejos: puede borrarse
+            pass
         elif stem.startswith("actualizaciondefinitiv"):
-            continue                            # "actualizacion definitive.bat": intocable
+            continue
         es_index_panel = (ruta.name.lower() == "index.html" and ruta.parent == HERR)
         ext_ok = ruta.suffix.lower() in BORrables_ext or es_index_panel
         if not ext_ok:
             continue
-        # protecciones: nunca borrar este script ni las piezas por diseño
         if ruta.resolve() == Path(__file__).resolve():
             continue
         if stem in {"prepararfotos", "actualizargaleria", "actualizaciondefinitiva", "moverfotosagaleria", "pedido", "pedidops"}:
-            # (piezas por diseno; las viejas copias de estas dos primeras viven
-            #  en herramientas/ y se eliminan igual con la carpeta, ver abajo)
             continue
-        # Proteccion a pedido: NUNCA borrar nada relacionado con las categorias
-        # legado / prueba trimestre (jubilar_legado, migrar_legado, etc.).
         if "legado" in stem or ("prueba" in stem and "trimestre" in stem) or "t9test" in stem:
             continue
         if stem == "marcaagua" and ruta.suffix.lower() == ".png":
             continue
-        # los tres pasos viejos quedaron consolidados en actualizador.py:
-        # si llegaron hasta aqui, se eliminan directo (sus nombres normalizados
-        # no coinciden con los patrones de A_BORRAR por la "a" de "definitiva")
         if re.search(r"definitiv[ae][123]", stem):
             try:
                 ruta.unlink()
@@ -752,7 +583,6 @@ def limpiar_viejos(hechos):
         for patron in A_BORRAR:
             p = _norm(patron)
             if p == "index":
-                # solo herramientas/index.html y variantes "index.bat/.cmd/.ps1" heredadas
                 coincide = es_index_panel or (stem == "index" and ruta.suffix.lower() in {".bat", ".cmd", ".ps1"})
             else:
                 coincide = stem == p or stem.startswith(p)
@@ -763,8 +593,6 @@ def limpiar_viejos(hechos):
                 except OSError as e:
                     hechos.append(f"No pude borrar {ruta.relative_to(RAIZ)}: {e}")
                 break
-    # Ademas se eliminan los restos de la consolidacion: las piezas temporales
-    # (_c1/_c2/_c3f/_c3g/_trozo*/_ok.flag) que quedaron de armar actualizador.py.
     for ruta in sorted(RAIZ.iterdir()):
         if not ruta.is_file():
             continue
@@ -781,10 +609,6 @@ def limpiar_viejos(hechos):
                 hechos.append("Eliminado _ok.flag (resto temporal de la consolidacion)")
             except OSError as e:
                 hechos.append(f"No pude borrar _ok.flag: {e}")
-    # A pedido: eliminar TODA la carpeta herramientas/. Sus scripts quedaron
-    # duplicados en "actualizacion definitive 1/2/3.py" (raiz). Unica excepcion:
-    # marca_agua.png, recurso necesario para convertir fotos -> se copia a la
-    # raiz antes de borrar la carpeta (asi el paso 2 la encuentra siempre).
     if HERR.is_dir():
         marca_vieja = HERR / "marca_agua.png"
         marca_nueva = RAIZ / "marca_agua.png"
@@ -803,10 +627,8 @@ def limpiar_viejos(hechos):
 
 def crear_bat(hechos):
     bat = RAIZ / "actualizacion definitive.bat"
-    # CRLF real para que Windows lo ejecute bien al doble clic.
     bat.write_bytes(BAT_DEFINITIVA.replace("\n", "\r\n").encode("utf-8"))
     hechos.append('Creado "actualizacion definitive.bat" en la raiz (el boton unico: corre actualizador.py)')
-    # el boton viejo dentro de herramientas/ ya no sirve (la carpeta se elimina abajo)
     bat_viejo = HERR / "actualizacion_definitiva.bat"
     if bat_viejo.exists():
         try:
@@ -817,18 +639,15 @@ def crear_bat(hechos):
 
 
 # ==================== PASO 2 CONSOLIDADO: conversion de fotos ====================
-# ------------------------- AJUSTES (puedes cambiarlos) -------------------------
-CALIDAD = 80            # 70 = mas liviano, 85 = mas calidad. Recomendado: 80
-LADO_MAXIMO = 1920      # lado mas largo en pixeles. 0 = no reducir
-ANCHO_MARCA = 0.6      # ancho de la marca de agua = 60% del ancho de la foto (0.35 = mas pequena)
-OPACIDAD = 0.5          # 1 = tal como es tu PNG; mas de 1 = mas visible; menos de 1 = mas tenue
-POSICION = "centro"     # "centro" o "abajo-derecha"
-# -------------------------------------------------------------------------------
+# CAMBIO: Calidad reducida de 80 a 70
+CALIDAD = 70
+LADO_MAXIMO = 1920
+ANCHO_MARCA = 0.6
+OPACIDAD = 0.5
+POSICION = "centro"
 
 POR_PROCESAR = RAIZ / "por-procesar"
 SALIDA_P2 = RAIZ / "fotos"
-# El logo se copio a la raiz al eliminar la carpeta herramientas/; durante la
-# transicion puede seguir estando ahi tambien.
 MARCA_AGUA = RAIZ / "marca_agua.png"
 if not MARCA_AGUA.exists():
     _marca_vieja = RAIZ / "herramientas" / "marca_agua.png"
@@ -841,7 +660,6 @@ if Image is not None:
 
 
 def _normalizar_fecha(txt):
-    """Pasa 'AAAA:MM:DD HH:MM:SS' o 'AAAA-MM-DD...' a 'AAAA-MM-DD' (o None si no es valida)."""
     f = str(txt or "").strip()[:10].replace("/", "-").replace(":", "-")
     if len(f) == 10 and f[4] == "-" and f[7] == "-":
         return f
@@ -849,12 +667,6 @@ def _normalizar_fecha(txt):
 
 
 def _fecha_cr2_muy_grande(origen):
-    """Plan B para CR2 que PIL no puede abrir (mas de 65535 px por lado): lee la fecha del EXIF crudo.
-
-    Recorre las cadenas de IFD/TIFF (incluidas sub-IFDs, como la IFD Exif donde Canon/Nikon/Sony
-    guardan DateTimeOriginal) buscando la fecha de toma. Solo se leen cadenas coherentes: si una
-    entrada parece corrupta se ignora ese nivel sin perder lo ya encontrado.
-    """
     try:
         datos = origen.read_bytes()
         if len(datos) < 16:
@@ -864,7 +676,6 @@ def _fecha_cr2_muy_grande(origen):
         u32 = lambda b, o: int.from_bytes(b[o:o + 4], endian)
 
         def leer_ifd(bloque, base):
-            """Devuelve (dict tag->valor, next_offset) o None si la cadena parece invalida."""
             try:
                 n = u16(bloque, 0)
                 if n > 600 or len(bloque) < 2 + 12 * n:
@@ -873,11 +684,11 @@ def _fecha_cr2_muy_grande(origen):
                 for i in range(n):
                     e = 2 + 12 * i
                     tag, typ, cnt = u16(bloque, e), u16(bloque, e + 2), u32(bloque, e + 4)
-                    if typ == 2:                                   # ASCII
+                    if typ == 2:
                         tam = max(cnt, 1)
                         if tam <= 4:
                             txt = bloque[e + 8:e + 8 + tam]
-                        elif 4 + tam <= len(bloque):               # puntero a zona de datos
+                        elif 4 + tam <= len(bloque):
                             off = u32(bloque, e + 8)
                             if not (off < base or off - base + tam <= len(bloque)):
                                 continue
@@ -887,14 +698,14 @@ def _fecha_cr2_muy_grande(origen):
                         v = txt.split(b"\x00")[0].decode("ascii", "ignore").strip()
                         if v:
                             salida[tag] = v
-                    elif tag in (0x8769, 0xA005):                  # punteros ExifIFD / InteropIFD
+                    elif tag in (0x8769, 0xA005):
                         salida[tag] = u32(bloque, e + 8)
                 nxt = u32(bloque, 2 + 12 * n) if len(bloque) >= 2 + 12 * n + 4 else 0
                 return salida, nxt
             except Exception:
                 return None
 
-        cola = [int.from_bytes(datos[8:12], endian)]   # cabecera TIFF -> IFD0 (offset 8 en CR2)
+        cola = [int.from_bytes(datos[8:12], endian)]
         vistos = set()
         while cola:
             off = cola.pop(0)
@@ -905,7 +716,7 @@ def _fecha_cr2_muy_grande(origen):
             if not r:
                 continue
             tags, nxt = r
-            for tag in (36867, 36868, 306):             # DateTimeOriginal / Digitized / DateTime
+            for tag in (36867, 36868, 306):
                 f = _normalizar_fecha(tags.get(tag))
                 if f:
                     return f
@@ -920,45 +731,34 @@ def _fecha_cr2_muy_grande(origen):
 
 
 def _guardar_jpg(im, destino_jpg, exif=None):
-    """Guarda RGB como JPEG calidad 95, adjuntando el EXIF si el formato lo permite."""
     extra = {"exif": exif} if exif else {}
     try:
-        im.save(destino_jpg, "JPEG", quality=95, **extra)
-    except (ValueError, TypeError):             # algunos EXIF no son validos para JPEG
-        im.save(destino_jpg, "JPEG", quality=95)
+        # CAMBIO: Calidad reducida de 95 a 70
+        im.save(destino_jpg, "JPEG", quality=70, **extra)
+    except (ValueError, TypeError):
+        im.save(destino_jpg, "JPEG", quality=70)
 
 
 def revelar_raw(origen, destino_jpg):
-    """RAW (CR2/CR3/NEF/ARW/DNG...) -> JPG temporal. Devuelve la fecha 'AAAA-MM-DD' del RAW o None.
-
-    Ruta principal: rawpy/LibRaw (revelado completo). Si falta rawpy o el archivo puntual
-    da error, se intenta una via alternativa con Pillow (lee el JPG embebido del RAW),
-    y para CR2 modernos muy grandes existe un lector directo del EXIF para la fecha.
-    """
     import io
     fecha = None
     jpg = None
     if rawpy is not None:
         try:
             with rawpy.imread(str(origen)) as r:
-                jpg = r.postprocess(use_auto_wb=True)          # revelado basico de LibRaw
+                jpg = r.postprocess(use_auto_wb=True)
                 try:
                     fecha = _normalizar_fecha(getattr(r.other, "capture_time", ""))
                 except Exception:
                     fecha = None
-        except Exception as e:            except Exception as e:
-                print(f"  ERROR con {f.name}: {e}")
-        try:
-            barra.close()                         # limpia la barra al terminar la carpeta
-        except Exception:
-            pass
-        for tmp in temporales:
+        except Exception as e:
             print(f"    AVISO: rawpy no pudo revelar {origen.name} ({e}); pruebo la via alternativa.")
-    if jpg is None:                                           # via alternativa: Pillow
+            
+    if jpg is None:
         try:
             with Image.open(origen) as im:
                 exif = im.getexif()
-                try:                                # DateTimeOriginal vive en la IFD Exif (0x8769)
+                try:
                     sub = exif.get_ifd(0x8769)
                     for tag in (36867, 36868, 306):
                         if sub.get(tag):
@@ -972,17 +772,20 @@ def revelar_raw(origen, destino_jpg):
                 if im.mode in ("RGBA", "LA", "P"):
                     im = im.convert("RGB")
                 buf = io.BytesIO()
-                im.save(buf, "JPEG", quality=95)
+                # CAMBIO: Calidad reducida de 95 a 70 para el temporal
+                im.save(buf, "JPEG", quality=70)
                 jpg = buf.getvalue()
         except Exception as e:
             print(f"    AVISO: Pillow tampoco abrio {origen.name} ({type(e).__name__}: {e}).")
-            if origen.suffix.lower() == ".cr2":               # plan B solo para la fecha
+            if origen.suffix.lower() == ".cr2":
                 fecha = _fecha_cr2_muy_grande(origen)
             return None
+            
     if jpg is None:
         if rawpy is None:
             print(f"    AVISO: {origen.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
         return None
+        
     _guardar_jpg(Image.open(io.BytesIO(jpg)), destino_jpg)
     return fecha
 
@@ -1003,46 +806,41 @@ def poner_marca(im, marca):
 
 def convertir(origen, destino, marca):
     with Image.open(origen) as im:
-        exif = im.getexif()                      # aqui viaja la fecha de la foto
+        exif = im.getexif()
         icc = im.info.get("icc_profile")
-        im = ImageOps.exif_transpose(im)         # endereza la foto segun la camara
+        im = ImageOps.exif_transpose(im)
         if 274 in exif:
-            del exif[274]                        # ya enderezada: se quita la orientacion
+            del exif[274]
         im = im.convert("RGB")
         if LADO_MAXIMO:
             im.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
         if marca is not None:
             im = poner_marca(im, marca)
         extra = {"icc_profile": icc} if icc else {}
+        # CAMBIO: Aquí ya se usaba la variable CALIDAD, que ahora es 70
         im.save(destino, "WEBP", quality=CALIDAD, method=6, exif=exif, **extra)
 
 
 def registrar_fecha(carpeta, nombre_sin_ext, fecha):
-    """Agrega una linea a fotos/fechas.txt para que la foto conserve su fecha (los RAW no traen EXIF visible)."""
     txt = RAIZ / "fotos" / "fechas.txt"
     linea = f"{carpeta} | {nombre_sin_ext} | {fecha}\n"
     existentes = txt.read_text(encoding="utf-8").splitlines() if txt.exists() else []
     for l in existentes:
         p = [x.strip() for x in l.split("|")]
         if len(p) == 3 and p[0].lower() == carpeta.lower() and p[1].lower() == nombre_sin_ext.lower():
-            return                      # ya estaba registrada
+            return
     with txt.open("a", encoding="utf-8") as f:
         f.write(linea)
 
 
-GALERIA = SALIDA_P2 / "galeria"   # unica carpeta que muestra la galeria del sitio
+GALERIA = SALIDA_P2 / "galeria"
 
 
 def _nombre_webp(stem):
-    """Nombre CANONICO del .webp en la galeria: mismo numero/nombre que la foto
-    de por-procesar, pero siempre en minusculas y con espacios -> guiones
-    (asi 'IMG_6001.JPG' y 'img_6001.jpg' apuntan al mismo 'img_6001.webp')."""
     return stem.strip().replace(" ", "-").lower()
 
 
 def _nombre_foto(stem):
-    """Nombre REAL del .webp en la galeria: el stem original EXACTO (conserva
-    mayusculas/minisculas), solo con los espacios cambiados por guiones."""
     return stem.strip().replace(" ", "-")
 
 
@@ -1051,7 +849,7 @@ def _nombre_unico(stem):
     ideal = GALERIA / f"{base}.webp"
     if not ideal.exists():
         return ideal
-    canon = _nombre_webp(stem)          # solo para COMPARAR, no para nombrar
+    canon = _nombre_webp(stem)
     for p in GALERIA.iterdir():
         if _nombre_webp(p.stem) == canon:
             return p
@@ -1064,9 +862,6 @@ def _nombre_unico(stem):
 
 
 def _existe_en_galeria(canon):
-    """True si en fotos/galeria/ ya hay una foto de esta misma foto de
-    por-procesar, sin importar mayusculas ni extension (IMG_6001.webp,
-    img_6001.JPG o 'foto-9002.webp' cuentan como existente)."""
     for p in GALERIA.iterdir():
         if p.is_file() and p.suffix.lower() in (".webp", ".jpg", ".jpeg", ".png") \
                 and _nombre_webp(p.stem) == canon:
@@ -1074,15 +869,14 @@ def _existe_en_galeria(canon):
     return False
 
 
-def convertir_todas(        fallan_raw = []
-        barra = _barra_progreso(len(archivos), desc=f"Procesando carpeta '{clave}'")
-        for idx in barra:                         # tqdm o fallback con porcentaje
-            f = archivos[idx]
-            origen = f):
+# =========================================================================
+# FUNCIÓN CORREGIDA: convertir_todas con barra de progreso integrada
+# =========================================================================
+def convertir_todas():
     POR_PROCESAR.mkdir(exist_ok=True)
     GALERIA.mkdir(parents=True, exist_ok=True)
-    # Colectar TODAS las fotos de por-procesar/ (recursivo), sin exigir subcarpetas.
-    grupos = {}   # clave de subcarpeta -> [archivos]
+    
+    grupos = {}
     for p in sorted(POR_PROCESAR.rglob("*")):
         if not p.is_file():
             continue
@@ -1092,14 +886,16 @@ def convertir_todas(        fallan_raw = []
         rel = p.relative_to(POR_PROCESAR)
         clave = rel.parts[0] if len(rel.parts) > 1 else "_sueltas"
         grupos.setdefault(clave, []).append(p)
+        
     if not grupos:
         print("No hay fotos dentro de 'por-procesar'. Mete ahi tus fotos terminadas")
         print("(sueltas o en carpetas, ej. por-procesar/t4/) y vuelve a ejecutar.")
         return 1
+        
     marca = None
     if MARCA_AGUA.exists():
         marca = Image.open(MARCA_AGUA).convert("RGBA")
-        caja = marca.getchannel("A").getbbox()      # quita los bordes transparentes para centrar bien
+        caja = marca.getchannel("A").getbbox()
         if caja:
             marca = marca.crop(caja)
         print(f"Marca de agua: {marca.width}x{marca.height} px, una sola, en el {POSICION}.")
@@ -1115,20 +911,26 @@ def convertir_todas(        fallan_raw = []
         if resp != "SI":
             print("Cancelado. Pon tu marca de agua (PNG transparente) en la raiz como marca_agua.png y repite.")
             return 1
+            
     GALERIA.mkdir(parents=True, exist_ok=True)
     total = 0
+    
     for clave in sorted(grupos):
         archivos = grupos[clave]
         nuevas = 0
         temporales = []
         fallan_raw = []
-        for f in archivos:
+        
+        # --- AQUÍ SE APLICA LA BARRA DE PROGRESO ---
+        barra = _barra_progreso(len(archivos), desc=f"Procesando carpeta '{clave}'")
+        for idx in barra:
+            f = archivos[idx]
             origen = f
             canon = _nombre_webp(f.stem)
             if _existe_en_galeria(canon):
-                continue                          # esa foto ya esta en la galeria: no se repite
+                continue
             try:
-                if f.suffix.lower() in EXT_RAW:   # RAW -> JPG temporal (primero JPG, luego WebP)
+                if f.suffix.lower() in EXT_RAW:
                     if rawpy is None:
                         print(f"  AVISO: {f.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
                         continue
@@ -1136,14 +938,13 @@ def convertir_todas(        fallan_raw = []
                     tmp.parent.mkdir(exist_ok=True)
                     fecha_raw = revelar_raw(f, tmp)
                     if not tmp.exists():
-                        fallan_raw.append(f.name)          # no se pudo revelar: queda para la proxima
+                        fallan_raw.append(f.name)
                         continue
                     origen = tmp
                     temporales.append(tmp)
                     if fecha_raw:
                         registrar_fecha("galeria", f.stem, fecha_raw)
                 else:
-                    # Las JPG/PNG/HEIC tambien merecen su fecha registrada (si traen EXIF).
                     try:
                         with Image.open(origen) as im:
                             ex = im.getexif()
@@ -1161,11 +962,19 @@ def convertir_todas(        fallan_raw = []
                 print(f"  OK  {f.name} -> fotos/galeria/{destino.name}  ({destino.stat().st_size // 1024} KB)")
             except Exception as e:
                 print(f"  ERROR con {f.name}: {e}")
+                
+        # Cerrar la barra de progreso al terminar la carpeta
+        try:
+            barra.close()
+        except Exception:
+            pass
+            
         for tmp in temporales:
             try:
-                tmp.unlink()                      # borra los JPG temporales
+                tmp.unlink()
             except OSError:
                 pass
+                
         total += nuevas
         skip = len(archivos) - nuevas - len(fallan_raw)
         print(f"{clave}: {nuevas} fotos nuevas ({skip} ya existian).")
@@ -1173,18 +982,17 @@ def convertir_todas(        fallan_raw = []
             print(f"  ATENCION: no se pudieron revelar {len(fallan_raw)} RAW: {', '.join(fallan_raw[:6])}")
             print("               Instala/actualiza la libreria (py -m pip install -U rawpy) o exporta esos")
             print("               archivos a JPG desde tu editor y vuelve a ejecutar (no se pierden).")
+            
     print(f"Listo: {total} fotos convertidas a fotos/galeria/ (con marca de agua).")
     print("Ahora el boton unico regenera la galeria; tus originales siguen en por-procesar/ para el pedido.")
     return 0
+# =========================================================================
 
 
-# ---------------------------------------------------------- espejo exacto (D) --
-EXT_FOTO_P2 = EXTENSIONES | EXT_RAW   # todo lo que por-procesar puede contener
+EXT_FOTO_P2 = EXTENSIONES | EXT_RAW
 
 
 def _claves_procesables():
-    """Conjuntos de referencia de por-procesar/: stems normales, stems con
-    espacio->guion, y stems ya en .webp (para no duplicar ni borrar de mas)."""
     claves_normal, claves_guion, webps_locales = set(), set(), set()
     if POR_PROCESAR.is_dir():
         for p in POR_PROCESAR.rglob("*"):
@@ -1201,109 +1009,124 @@ def _pertenece_a_procesar(nombre_sin_ext, claves_normal, claves_guion):
     n = nombre_sin_ext.lower()
     if n in claves_normal or n in claves_guion:
         return True
-    base, _, sufijo = n.rpartition("_")        # IMG_6001_1 cuenta como IMG_6001
+    base, _, sufijo = n.rpartition("_")
     return bool(sufijo.isdigit()) and base in claves_normal
 
 
 def _igualar_mayusculas(stem):
-    """Nombre del .webp con el MISMO numero/nombre que la foto de por-procesar,
-    conservando sus mayusculas originales (el espejo debe ser exacto: si alla
-    dice IMG_6001, aqui debe decir IMG_6001.webp)."""
-    canon = _nombre_webp(stem)          # minusculas, espacios -> guiones
+    canon = _nombre_webp(stem)
     if POR_PROCESAR.is_dir():
         for p in POR_PROCESAR.rglob("*"):
             if p.is_file() and p.suffix.lower() in EXT_FOTO_P2 and _nombre_webp(p.stem) == canon:
-                return p.stem.replace(" ", "-")   # nombre original, sin cambiar mayusculas
+                return p.stem.replace(" ", "-")
     return canon
 
 
+# =========================================================================
+# FUNCIÓN ACTUALIZADA: igualar_galeria_a_por_procesar CON BARRA DE PROGRESO
+# =========================================================================
 def igualar_galeria_a_por_procesar():
-    """Deja fotos/galeria/ con EXACTAMENTE los numeros, nombres y cantidad de
-    archivos .webp que corresponden a las fotos de por-procesar/ (a pedido).
-    Si por-procesar esta vacio NO toca nada (proteccion: nunca borra tu galeria
-    por una carpeta local ausente). Devuelve (renombradas, borradas, faltantes)."""
     renombradas, borradas, faltantes = [], [], []
     claves_normal, claves_guion, webps_locales = _claves_procesables()
     if not claves_normal or not GALERIA.is_dir():
         return renombradas, borradas, faltantes
 
-    # 1) deseados/faltantes: UN .webp por foto de por-procesar, con su nombre exacto
     presentes = {p.name for p in GALERIA.iterdir() if p.is_file()}
-    presentes_norm = {p.lower() for p in presentes}   # Windows ignora mayusculas
+    presentes_norm = {p.lower() for p in presentes}
     deseados = set()
     for canon in sorted(claves_guion):
         destino = f"{_igualar_mayusculas(canon)}.webp"
         deseados.add(destino)
         if destino not in presentes and destino.lower() not in presentes_norm:
-            faltantes.append(destino)                  # no existe ni con otras mayusculas
+            faltantes.append(destino)
 
-    # 2) sobrantes: cualquier archivo de la galeria que no pertenezca a una
-    #    foto de por-procesar, o que sea un duplicado del nombre deseado
     a_borrar, a_renombrar = [], []
     for p in sorted(GALERIA.iterdir()):
         if not p.is_file():
             continue
         ext = p.suffix.lower()
         if ext not in (".webp", ".jpg", ".jpeg", ".png"):
-            continue                            # txt u otros: intocables
+            continue
         if not _pertenece_a_procesar(p.stem, claves_normal, claves_guion):
             a_borrar.append(p)
             continue
         if ext == ".webp":
             ideal = f"{_igualar_mayusculas(p.stem)}.webp"
-            if p.name != ideal:                 # el nombre debe quedar EXACTO (igual que por-procesar)
+            if p.name != ideal:
                 if _nombre_webp(ideal[:-5]) != _nombre_webp(p.stem):
-                    a_borrar.append(p)          # no pertenece al espejo: sobrante
+                    a_borrar.append(p)
                 elif (GALERIA / ideal).exists():
-                    a_borrar.append(p)          # duplicado: sobra tras el correcto
+                    a_borrar.append(p)
                 else:
                     a_renombrar.append((p, GALERIA / ideal))
             elif p.name.lower() in deseados and p.name not in deseados:
                 a_renombrar.append((p, GALERIA / next(d for d in deseados if d.lower() == p.name.lower())))
         else:
-            a_borrar.append(p)                  # jpg/png sobrante: la galeria es webp
+            a_borrar.append(p)
 
-    # 3) aplicar primero los renombrados (libera el nombre ideal si esta libre)
-    for origen, destino in a_renombrar:
-        try:
-            if destino.exists():
-                if origen.stat().st_size >= destino.stat().st_size:
-                    destino.unlink()
+    # --- BARRA DE PROGRESO PARA RENOMBRAR ---
+    if a_renombrar:
+        print(f"\nSincronizando galería: {len(a_renombrar)} archivos por renombrar...")
+        barra_renombrar = _barra_progreso(len(a_renombrar), desc="Renombrando")
+        for idx in barra_renombrar:
+            origen, destino = a_renombrar[idx]
+            try:
+                if destino.exists():
+                    if origen.stat().st_size >= destino.stat().st_size:
+                        destino.unlink()
+                        origen.rename(destino)
+                        renombradas.append(f"{origen.name} -> {destino.name}")
+                    else:
+                        a_borrar.append(origen)
+                else:
                     origen.rename(destino)
                     renombradas.append(f"{origen.name} -> {destino.name}")
-                else:
-                    a_borrar.append(origen)
-            else:
-                origen.rename(destino)
-                renombradas.append(f"{origen.name} -> {destino.name}")
-        except OSError as e:
-            print(f"AVISO (espejo): no pude renombrar {origen.name}: {e}")
-
-    # 4) eliminar los sobrantes
-    for p in a_borrar:
+            except OSError as e:
+                print(f"AVISO (espejo): no pude renombrar {origen.name}: {e}")
         try:
-            p.unlink()
-            borradas.append(p.name)
-        except OSError as e:
-            print(f"AVISO (espejo): no pude borrar {p.name}: {e}")
+            barra_renombrar.close()
+        except Exception:
+            pass
 
-    # 5) verificacion final: la galeria debe ser exactamente el conjunto deseado
+    # --- BARRA DE PROGRESO PARA ELIMINAR ---
+    if a_borrar:
+        print(f"\nLimpiando galería: {len(a_borrar)} archivos por eliminar...")
+        barra_borrar = _barra_progreso(len(a_borrar), desc="Eliminando")
+        for idx in barra_borrar:
+            p = a_borrar[idx]
+            try:
+                p.unlink()
+                borradas.append(p.name)
+            except OSError as e:
+                print(f"AVISO (espejo): no pude borrar {p.name}: {e}")
+        try:
+            barra_borrar.close()
+        except Exception:
+            pass
+
     presentes = {p.name for p in GALERIA.iterdir() if p.is_file() and p.suffix.lower() == ".webp"}
     sobran = sorted(p for p in presentes
                     if p not in deseados and p.lower() not in {d.lower() for d in deseados})
     if sobran:
-        for nombre in sobran:
+        print(f"\nVerificación final: {len(sobran)} archivos adicionales por eliminar...")
+        barra_final = _barra_progreso(len(sobran), desc="Verificando")
+        for idx in barra_final:
+            nombre = sobran[idx]
             try:
                 (GALERIA / nombre).unlink()
                 borradas.append(nombre)
             except OSError as e:
                 print(f"AVISO (espejo): no pude borrar {nombre}: {e}")
+        try:
+            barra_final.close()
+        except Exception:
+            pass
+        
     return renombradas, borradas, faltantes
+# =========================================================================
 
 
-# ==================== PASO 3 CONSOLIDADO: generador de fotos.js ====================
 def fecha_exif(ruta):
-    """Devuelve 'AAAA-MM-DD' desde los datos internos de la foto, o None."""
     if Image is None:
         return None
     try:
@@ -1319,7 +1142,6 @@ def fecha_exif(ruta):
 
 
 def leer_fechas_manuales():
-    """fotos/fechas.txt -> {carpeta: [(lista_de_fotos_o_None, 'AAAA-MM-DD'), ...]}"""
     reglas, ruta = {}, FOTOS / "fechas.txt"
     if not ruta.exists():
         return reglas
@@ -1340,7 +1162,6 @@ def leer_fechas_manuales():
 
 
 def fechas_de_seccion(carpeta, fotos, rutas, reglas):
-    """Calcula la fecha de cada foto: 1) reglas de fechas.txt, 2) EXIF. Una regla con * vale solo para las fotos que aun no tienen fecha."""
     stems = [Path(f).stem for f in fotos]
     resultado = {f: fecha_exif(rutas / f) for f in fotos}
     puestas = set()
@@ -1366,12 +1187,6 @@ def fechas_de_seccion(carpeta, fotos, rutas, reglas):
 
 
 def leer_etiquetas():
-    """fotos/etiquetas.txt -> [(selector, [etiqueta, ...]), ...] para TODAS las carpetas.
-
-    Formato de linea:  fotos | moto,casco,caras   (sin carpeta: las etiquetas valen en todo el sitio)
-      - fotos: un nombre sin .jpg/.webp, o un rango con la palabra " a ".
-    El orden importa: la ultima regla que toque una foto reemplaza sus etiquetas.
-    """
     reglas, ruta = [], FOTOS / "etiquetas.txt"
     if not ruta.exists():
         return reglas
@@ -1392,7 +1207,6 @@ def leer_etiquetas():
 
 
 def etiquetas_de_seccion(fotos, rutas, reglas):
-    """Calcula las etiquetas de cada foto desde fotos/etiquetas.txt -> {foto: [etiqueta, ...]}"""
     stems = [Path(f).stem for f in fotos]
     resultado = {}
     for selector, lista in reglas:
@@ -1400,19 +1214,13 @@ def etiquetas_de_seccion(fotos, rutas, reglas):
         try:
             ini, fin = stems.index(ext[0]), stems.index(ext[-1])
         except ValueError:
-            continue   # la regla no pertenece a esta seccion: se ignora en silencio
+            continue
         for i in range(min(ini, fin), max(ini, fin) + 1):
             resultado[fotos[i]] = list(lista)
     return {f: v for f, v in resultado.items() if v}
 
 
-# NOTA: antes este script borraba ciertas etiquetas (moto/casco/caras) al generar fotos.js.
-# Se quitó ese filtro a pedido del dueño: el archivo debe respetar tal cual lo que diga
-# fotos/etiquetas.txt, porque en el futuro habra funciones que usaran etiquetas parecidas.
-
-
 def generar_fotos_js():
-    """Paso 3: regenera assets/js/fotos.js leyendo fotos/trimestres.txt."""
     reglas = leer_fechas_manuales()
     etiquetas_reglas = leer_etiquetas()
     secciones = []
@@ -1422,7 +1230,7 @@ def generar_fotos_js():
             continue
         carpeta, titulo = [x.strip() for x in linea.split("|", 1)]
         reales = {d.name.lower(): d.name for d in FOTOS.iterdir() if d.is_dir()}
-        carpeta = reales.get(carpeta.lower(), carpeta)   # GitHub distingue Legado de legado: se usa el nombre real
+        carpeta = reales.get(carpeta.lower(), carpeta)
         ruta = FOTOS / carpeta
         ruta.mkdir(exist_ok=True)
         fotos = sorted(p.name for p in ruta.iterdir() if p.suffix.lower() in EXT_FOTOS)
@@ -1431,7 +1239,7 @@ def generar_fotos_js():
         if fechas:
             seccion["fechas"] = fechas
         ets = etiquetas_de_seccion(fotos, ruta, etiquetas_reglas)
-        ets = {f: v for f, v in ets.items() if v}   # descartar fotos que se quedaron sin etiquetas
+        ets = {f: v for f, v in ets.items() if v}
         if ets:
             seccion["etiquetas"] = ets
             seccion["todas_etiquetas"] = sorted({e for v in ets.values() for e in v})
@@ -1446,9 +1254,7 @@ def generar_fotos_js():
     print("Listo: assets/js/fotos.js actualizado.")
 
 
-# --------------------------------------------------------------------- main --
 def paso_principal():
-    """Pasos A-C-F del viejo 'actualizacion definitiva 1.py' + D (espejo) + E (fotos.js)."""
     paso_final = 3
     for arg in sys.argv[1:]:
         if arg in {"1", "2", "3"}:
@@ -1463,7 +1269,6 @@ def paso_principal():
     if not (RAIZ / "marca_agua.png").exists() and not (HERR / "marca_agua.png").exists():
         print(MARCA_AGUIO.replace("\n", " "))
 
-    # A) ordenar fotos sueltas hacia fotos/galeria
     print("\n--- A) Ordenando la carpeta fotos/ hacia fotos/galeria ---")
     mov, av = ordenar_fotos()
     for m in mov:
@@ -1479,7 +1284,6 @@ def paso_principal():
     else:
         print("\n--- A2) Legado / Prueba Trimestre: SIN TOCAR (codigo de jubilacion quitado del boton) ---")
 
-    # B) parches del sitio (webp + galería plus + consolidación)
     print("\n--- B) Parches y consolidación del sitio ---")
     hechos = []
     parche_webp(hechos)
@@ -1490,7 +1294,6 @@ def paso_principal():
     if not hechos:
         print("Sitio: los parches ya estaban aplicados (no hice nada).")
 
-    # C) boton unico
     print("\n--- C) Botón único ---")
     hechos_bat = []
     crear_bat(hechos_bat)
@@ -1501,7 +1304,6 @@ def paso_principal():
         print("\n(Solo se pidio el paso 1: no conversion. Ejecuta el boton sin numero para el flujo completo.)")
         return 0
 
-    # D1) convertir por-procesar -> WebP con marca de agua (viejo paso 2)
     print("\n--- D) Convirtiendo por-procesar/ a WebP (con marca de agua) ---")
     if Image is None:
         print("AVISO: sin Pillow no puedo convertir fotos. Instala: py -m pip install Pillow")
@@ -1511,8 +1313,6 @@ def paso_principal():
     if rc_conv == 1:
         print("(No habia fotos nuevas en por-procesar: la galeria sigue igual.)")
 
-    # D2) espejo EXACTO: fotos/galeria queda con los mismos numeros/nombres/
-    #     cantidad de .webp que hay en por-procesar (a pedido)
     print("\n--- D2) Igualando fotos/galeria a por-procesar (espejo exacto en .webp) ---")
     renom, borr, falt = igualar_galeria_a_por_procesar()
     if not (POR_PROCESAR.is_dir() and any(p.is_file() and p.suffix.lower() in EXT_FOTO_P2
@@ -1528,7 +1328,6 @@ def paso_principal():
         total_webp = sum(1 for p in GALERIA.iterdir() if p.is_file() and p.suffix.lower() == ".webp")
         print(f"Galeria sincronizada: {total_webp} archivos .webp = la misma cantidad/nombres que por-procesar.")
 
-    # E) regenerar la galeria (assets/js/fotos.js)
     print("\n--- E) Regenerando assets/js/fotos.js ---")
     rc = 0
     try:
@@ -1537,7 +1336,6 @@ def paso_principal():
         print("AVISO: fallo la generacion de fotos.js:", e)
         rc = 1
 
-    # F) eliminar los archivos viejos consolidados (incluidos los pasos 1/2/3)
     print("\n--- F) Limpieza de archivos viejos ---")
     hechos_lim = []
     limpiar_viejos(hechos_lim)
