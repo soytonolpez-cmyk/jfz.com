@@ -41,7 +41,7 @@
     var h = $("#header");
     if (h) h.innerHTML =
       '<div class="container-fluid position-relative d-flex align-items-center justify-content-between">' +
-      '<a href="index.html" class="logo d-flex align-items-center me-auto me-xl-0"><img src="assets/img/logo.png" alt="Logo JFZ"><h1 class="sitename">JuanetoFZ</h1></a>' +
+      '<a href="index.html" class="logo d-flex align-items-center me-auto me-xl-0"><img src="assets/img/logo.png" alt="Logo JFZ"><h1 class="sitename">JUANETO.BIKER</h1></a>' +
       '<nav id="navmenu" class="navmenu"><ul>' +
       '<li><a href="index.html"' + act("inicio") + ">Inicio</a></li>" +
       '<li><a href="index.html#sobre-mi">Sobre mí</a></li>' +
