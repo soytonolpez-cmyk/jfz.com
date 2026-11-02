@@ -10,7 +10,7 @@ window.JFZ_CONFIG = {
   // 2) Datos de contacto que se muestran en la página Contacto
   TELEFONO: "+57 304 550 8474",
   CORREO: "juanetobiker@gmail.com",
-  UBICACION: "https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3667.207929734902!2d-75.51556599999999!3d6.159856!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zNsKwMDknMzUuNSJOIDc1wrAzMCc1Ni4wIlc!5e1!3m2!1ses-419!2sco!4v1793577698772!5m2!1ses-419!2sco",
+  UBICACION: "https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3667.2078945052012!2d-75.5155556!3d6.1598611!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zNsKwMDknMzUuNSJOIDc1wrAzMCc1Ni4wIlc!5e1!3m2!1ses-419!2sco!4v1793579458467!5m2!1ses-419!2sco",
   INSTAGRAM: "https://www.instagram.com/juaneto.biker",
   // Otras redes: pega el enlace entre comillas y aparecerán solas. Déjalas "" si no aplican.
   TIKTOK: "",
