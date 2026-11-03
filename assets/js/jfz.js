@@ -527,56 +527,20 @@
   function sendWhatsApp() {
     if (!cart.length) return;
     if (/X/i.test(C.WHATSAPP)) { alert("Falta configurar el número de WhatsApp en assets/js/config.js"); return; }
-    // El mensaje ya incluye el comando PowerShell dentro del texto: el dueño solo lo
-    // copia desde el chat y lo pega en una consola. Si la URL queda muy larga para
-    // wa.me, se pasa a modo compacto (sin el comando) y se ofrece descargar el .ps1.
+    // El mensaje NO incluye comandos de PowerShell: solo el pedido (fotos, servicios y total).
+    // Si la URL queda muy larga para wa.me, se pasa a modo compacto con rangos de fotos.
     var url = "https://wa.me/" + C.WHATSAPP + "?text=" + encodeURIComponent(buildMessage(false));
     if (url.length > 1900) {
       url = "https://wa.me/" + C.WHATSAPP + "?text=" + encodeURIComponent(buildMessage(true));
-      toast("Pedido muy largo: el comando PowerShell no cabe en WhatsApp — se envió el pedido con los rangos de fotos");
+      toast("Pedido muy largo: se envió el pedido con los rangos de fotos");
     }
     window.open(url, "_blank", "noopener");
   }
 
-  /* ---------- pedido: script PowerShell que copia los ORIGINALES del carrito ---------- */
-  // El sitio solo publica WebP; los RAW/CR2/JPG originales viven en el PC del dueño dentro de
-  //   C:\Users\Andres Vargas\OneDrive\Documentos\GitHub\jfz.com\por-procesar
-  // y se copian a
-  //   C:\Users\Andres Vargas\OneDrive\Documentos\Elementos de cami\Fotos pedidas
-  // El comando PowerShell se arma con los nombres EXACTOS del carrito y viaja DENTRO del
-  // mensaje de WhatsApp: el dueño solo copia el bloque y lo pega en una consola PowerShell.
-  // Para pegar en PowerShell sin errores, el comando usa SOLO comillas dobles (los nombres
-  // de archivo nunca llevan "), no lleva backticks ni llaves ${} (WhatsApp los come como
-  // emojis) y evita los guiones bajos (Word Autocorrector los convierte en espacios al copiar).
-  var PS_ORIG = "C:\\Users\\Andres Vargas\\OneDrive\\Documentos\\GitHub\\jfz.com\\por-procesar";
-  if (typeof window.JFZ_PS_ORIG === "string" && window.JFZ_PS_ORIG) PS_ORIG = window.JFZ_PS_ORIG;
-  var PS_DEST = "C:\\Users\\Andres Vargas\\OneDrive\\Documentos\\Elementos de cami\\Fotos pedidas";
-  if (typeof window.JFZ_PS_DEST === "string" && window.JFZ_PS_DEST) PS_DEST = window.JFZ_PS_DEST;
-  function psCmd() {
-    var nombres = photos().map(base);
-    if (!nombres.length) return "";
-    var L = [];
-    L.push("# Pedido JFZ " + new Date().toISOString().slice(0, 10) + " - copia los ORIGINALES (RAW/CR2/JPG) a la carpeta de entrega");
-    L.push('$orig = "' + PS_ORIG + '"');
-    L.push('$dest = "' + PS_DEST + '\\pedido-" + (Get-Date -Format "yyyyMMdd-HHmmss")');
-    L.push("New-Item -ItemType Directory -Force -Path $dest | Out-Null");
-    L.push("$lista = @(" + nombres.map(function (n) { return '"' + n + '"'; }).join(", ") + ")");
-    L.push("$ok = 0; $faltan = @()");
-    L.push("foreach ($n in $lista) {");
-    L.push("  $hit = Get-ChildItem -LiteralPath $orig -Recurse -File | Where-Object { $_.BaseName -ieq $n } | Select-Object -First 1");
-    L.push("  if ($hit) { Copy-Item -LiteralPath $hit.FullName -Destination $dest -Force; $ok++; Write-Host ('OK   ' + $n + ' -> ' + $hit.Name) -ForegroundColor Green }");
-    L.push("  else { $faltan += $n; Write-Host ('FALTA ' + $n) -ForegroundColor Yellow }");
-    L.push("}");
-    L.push("Write-Host ('Copiados: ' + $ok + ' -> ' + $dest)");
-    L.push("if ($faltan.Count) { Write-Host ('Faltaron: ' + ($faltan -join ', ')) -ForegroundColor Yellow }");
-    L.push("explorer $dest");
-    return L.join("\n");
-  }
   function buildMessage(compactMode) {
     var t = totals(), ph = photos(), sv = svcs();
     // En modo compacto (pedidos muy largos que no caben en la URL de wa.me) se
-    // omiten TODAS las fotos y el comando PowerShell: el comprador solo pone el
-    // rango y el .ps1 de descarga queda como respaldo.
+    // omiten TODAS las fotos: el comprador solo pone el rango.
     if (compactMode) {
       var Lc = ["Hola Juaneto 👋 Quiero hacer este pedido:", "", "Nombre: " + (user.name || "-"), "Correo: " + (user.email || "-"), ""];
       if (ph.length) Lc.push("FOTOS (" + ph.length + "): " + compact(ph), "");
@@ -604,9 +568,6 @@
     if (ph.length) L.push("Fotos: " + t.n + " x " + money(t.u) + " = " + money(t.fotos));
     L.push("Total: " + money(t.total) + (t.conv ? " + servicios a convenir" : ""));
     if (sv.some(function (s) { return s.aviso; })) L.push("", "✔ Acepto las condiciones de las sesiones indicadas en el sitio.");
-    // 3 líneas en blanco antes del código: al copiar y pegar en WhatsApp se ve separado
-    // visualmente del resto del mensaje.
-    if (ph.length) L.push("", "Copia y pega lo siguiente en una consola PowerShell:", "", "", "", psCmd());
     return L.join("\n");
   }
   function renderCartPage() {
@@ -634,7 +595,6 @@
       (svcs().length ? '<div class="jfz-line"><span>Servicios</span><span>' + money(t.sv) + (t.conv ? " + a convenir" : "") + '</span></div>' : "") +
       '<div class="jfz-line jfz-total"><span>Total</span><span>' + money(t.total) + '</span></div>' +
       '<button type="button" class="btn-get-started w-100" id="jfz-send"><i class="bi bi-whatsapp"></i> Enviar pedido por WhatsApp</button>' +
-      (ph.length ? '<p class="jfz-note">El comando <strong>PowerShell</strong> con los nombres exactos de estas fotos viaja dentro del mensaje de WhatsApp: solo cópialo y pégalo en una consola.</p>' : "") +
       '<button type="button" class="jfz-link" id="jfz-clear">Vaciar carrito</button>' +
       '<p class="jfz-note">El pago y la entrega se acuerdan por WhatsApp. Cuantas más fotos, menor el precio por foto.</p></div></div></div>';
     $$(".jfz-rm", box).forEach(function (b) { b.addEventListener("click", function () { remove(b.getAttribute("data-f")); }); });
