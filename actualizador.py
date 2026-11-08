@@ -32,9 +32,9 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, ImageDraw, ImageFont
 except ImportError:
-    Image = ImageOps = None
+    Image = ImageOps = ImageDraw = ImageFont = None
     print('AVISO: falta Pillow (py -m pip install Pillow). La conversion de fotos no funcionara sin ella.')
 
 try:
@@ -643,8 +643,14 @@ def crear_bat(hechos):
 CALIDAD = 70
 LADO_MAXIMO = 1920
 ANCHO_MARCA = 0.6
-OPACIDAD = 0.5
+# CAMBIO: antes 0.5; ahora 0.7 (= 40% mas opaca: 0.5 x 1.4)
+OPACIDAD = 0.7
 POSICION = "centro"
+# CAMBIO: segunda marca de agua, igual pero mas pequena, abajo a la derecha (todas las fotos)
+ANCHO_MARCA_CHICA = 0.2
+# CAMBIO: texto de derechos reservados (arriba y abajo de todas las fotos)
+TEXTO_DERECHOS = "© Fotos con derechos reservados por JuanetoFZ"
+ANCHO_TEXTO = 0.018   # tamano de la letra = 1.8% del ancho de la foto
 
 POR_PROCESAR = RAIZ / "por-procesar"
 SALIDA_P2 = RAIZ / "fotos"
@@ -786,21 +792,90 @@ def revelar_raw(origen, destino_jpg):
             print(f"    AVISO: {origen.name} es RAW y te falta la libreria. Instala: py -m pip install rawpy")
         return None
         
-    _guardar_jpg(Image.open(io.BytesIO(jpg)), destino_jpg)
+    # CAMBIO: rawpy devuelve una matriz de pixeles (ndarray), no bytes de un JPG.
+    # Antes se intentaba abrir con Image.open(BytesIO(...)) y fallaba con
+    # "cannot identify image file", por eso los RAW/CR2 nunca llegaban a la galeria.
+    if hasattr(jpg, "shape"):
+        img_revelada = Image.fromarray(jpg)
+    else:
+        img_revelada = Image.open(io.BytesIO(jpg))
+    _guardar_jpg(img_revelada, destino_jpg)
     return fecha
 
 
-def poner_marca(im, marca):
-    w = max(1, int(im.width * ANCHO_MARCA))
-    h = max(1, int(marca.height * w / marca.width))
-    m = marca.resize((w, h), Image.LANCZOS)
+def _marca_con_opacidad(marca, ancho):
+    """Marca redimensionada al ancho dado y con la OPACIDAD aplicada."""
+    h = max(1, int(marca.height * ancho / marca.width))
+    m = marca.resize((ancho, h), Image.LANCZOS)
     m.putalpha(m.getchannel("A").point(lambda a: min(255, int(a * OPACIDAD))))
+    return m
+
+
+def poner_marca(im, marca):
+    base = im.convert("RGBA")
+
+    # 1) Marca grande (la de siempre, ahora mas opaca)
+    w = max(1, int(im.width * ANCHO_MARCA))
+    m = _marca_con_opacidad(marca, w)
+    h = m.height
     if POSICION == "abajo-derecha":
         pos = (im.width - w - int(im.width * 0.03), im.height - h - int(im.width * 0.03))
     else:
         pos = ((im.width - w) // 2, (im.height - h) // 2)
-    base = im.convert("RGBA")
     base.alpha_composite(m, (max(0, pos[0]), max(0, pos[1])))
+
+    # 2) Marca pequena, igual, abajo a la derecha
+    wc = max(1, int(im.width * ANCHO_MARCA_CHICA))
+    mc = _marca_con_opacidad(marca, wc)
+    margen = int(im.width * 0.03)
+    pos_c = (max(0, im.width - wc - margen), max(0, im.height - mc.height - margen))
+    base.alpha_composite(mc, pos_c)
+
+    return base.convert("RGB")
+
+
+def _fuente_texto(tam):
+    for nombre in ("arial.ttf", "Arial.ttf", "DejaVuSans.ttf",
+                   "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                   "/System/Library/Fonts/Supplemental/Arial.ttf"):
+        try:
+            return ImageFont.truetype(nombre, tam)
+        except Exception:
+            continue
+    try:
+        return ImageFont.load_default(size=tam)
+    except TypeError:
+        return ImageFont.load_default()
+
+
+def poner_texto_derechos(im):
+    """Texto chico de derechos reservados, arriba y abajo (centrado)."""
+    tam = max(12, int(im.width * ANCHO_TEXTO))
+    fuente = _fuente_texto(tam)
+    capa = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(capa)
+    borde = max(1, tam // 14)
+    caja = d.textbbox((0, 0), TEXTO_DERECHOS, font=fuente, stroke_width=borde)
+    tw, th = caja[2] - caja[0], caja[3] - caja[1]
+    margen = max(6, int(im.width * 0.015))
+
+    x = (im.width - tw) // 2 - caja[0]
+    y_arriba = margen - caja[1]
+    y_abajo = im.height - margen - th - caja[1]
+
+    # Abajo: si el texto centrado chocara con la marca pequena (abajo-derecha), se corre a la izquierda.
+    borde_marca = im.width * (1 - ANCHO_MARCA_CHICA - 0.03) - margen
+    x_abajo = x
+    if x + caja[0] + tw > borde_marca:
+        x_abajo = max(margen, int(borde_marca - tw)) - caja[0]
+
+    relleno = (255, 255, 255, 235)
+    contorno = (0, 0, 0, 200)
+    d.text((x, y_arriba), TEXTO_DERECHOS, font=fuente, fill=relleno, stroke_width=borde, stroke_fill=contorno)
+    d.text((x_abajo, y_abajo), TEXTO_DERECHOS, font=fuente, fill=relleno, stroke_width=borde, stroke_fill=contorno)
+
+    base = im.convert("RGBA")
+    base.alpha_composite(capa)
     return base.convert("RGB")
 
 
@@ -816,6 +891,7 @@ def convertir(origen, destino, marca):
             im.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
         if marca is not None:
             im = poner_marca(im, marca)
+        im = poner_texto_derechos(im)
         extra = {"icc_profile": icc} if icc else {}
         # CAMBIO: Aquí ya se usaba la variable CALIDAD, que ahora es 70
         im.save(destino, "WEBP", quality=CALIDAD, method=6, exif=exif, **extra)
@@ -898,7 +974,7 @@ def convertir_todas():
         caja = marca.getchannel("A").getbbox()
         if caja:
             marca = marca.crop(caja)
-        print(f"Marca de agua: {marca.width}x{marca.height} px, una sola, en el {POSICION}.")
+        print(f"Marca de agua: {marca.width}x{marca.height} px, una grande en el {POSICION} + una pequena abajo-derecha, mas texto de derechos arriba y abajo.")
         if marca.width > 1500 or marca.height > 1500:
             print("AVISO: tu marca_agua.png es enorme. Debe ser UN solo logo, no una imagen con el logo repetido.")
     else:
