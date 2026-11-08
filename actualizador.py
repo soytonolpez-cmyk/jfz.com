@@ -642,11 +642,9 @@ def crear_bat(hechos):
 # CAMBIO: Calidad reducida de 80 a 70
 CALIDAD = 70
 LADO_MAXIMO = 1920
-# CAMBIO: opacidad subido de 0.5 a 0.65 (marca mas visible)
-ANCHO_MARCA_CENTRO = 0.6
-ANCHO_MARCA_RINCON = 0.12   # marca pequenita pegada a la esquina inferior derecha
-OPACIDAD = 0.65
-POSICION = "centro-y-abajo-derecha"  # una marca grande centrada + otra pequenita en la esquina
+ANCHO_MARCA = 0.6
+OPACIDAD = 0.5
+POSICION = "centro"
 
 POR_PROCESAR = RAIZ / "por-procesar"
 SALIDA_P2 = RAIZ / "fotos"
@@ -792,37 +790,18 @@ def revelar_raw(origen, destino_jpg):
     return fecha
 
 
-def _componer_marca(im, marca, ancho_frac, margen_frac):
-    """Coloca una copia de la marca escalada al ancho indicado (fraccion del ancho
-    de la foto) con la opacidad global, a la distancia del borde indicada."""
-    w = max(1, int(im.width * ancho_frac))
+def poner_marca(im, marca):
+    w = max(1, int(im.width * ANCHO_MARCA))
     h = max(1, int(marca.height * w / marca.width))
     m = marca.resize((w, h), Image.LANCZOS)
     m.putalpha(m.getchannel("A").point(lambda a: min(255, int(a * OPACIDAD))))
-    pos_x = im.width - w - int(im.width * margen_frac)
-    pos_y = im.height - h - int(im.width * margen_frac)
-    base = im.convert("RGBA")
-    base.alpha_composite(m, (max(0, pos_x), max(0, pos_y)))
-    return base.convert("RGB")
-
-
-def poner_marca(im, marca):
-    # 1) Marca principal segun POSICION ("centro", "abajo-derecha" o ambas)
-    if POSICION in ("abajo-derecha", "centro-y-abajo-derecha"):
-        im = _componer_marca(im, marca, ANCHO_MARCA_CENTRO, 0.03)
-    elif POSICION in ("centro", "centro-y-abajo-derecha"):
-        w = max(1, int(im.width * ANCHO_MARCA_CENTRO))
-        h = max(1, int(marca.height * w / marca.width))
-        m = marca.resize((w, h), Image.LANCZOS)
-        m.putalpha(m.getchannel("A").point(lambda a: min(255, int(a * OPACIDAD))))
+    if POSICION == "abajo-derecha":
+        pos = (im.width - w - int(im.width * 0.03), im.height - h - int(im.width * 0.03))
+    else:
         pos = ((im.width - w) // 2, (im.height - h) // 2)
-        base = im.convert("RGBA")
-        base.alpha_composite(m, (max(0, pos[0]), max(0, pos[1])))
-        im = base.convert("RGB")
-    # 2) Marca pequenita pegada a la esquina inferior derecha, misma opacidad
-    if POSICION == "centro-y-abajo-derecha":
-        im = _componer_marca(im, marca, ANCHO_MARCA_RINCON, 0.008)
-    return im
+    base = im.convert("RGBA")
+    base.alpha_composite(m, (max(0, pos[0]), max(0, pos[1])))
+    return base.convert("RGB")
 
 
 def convertir(origen, destino, marca):
