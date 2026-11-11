@@ -141,7 +141,7 @@
   }
 
   /* ---------- galería + filtros (fechas, trimestres, orden) ---------- */
-  var EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
+  var EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "desc" };   // por defecto: imágenes más recientes primero (a pedido)
   /* Paginado de la galería: NO se pintan todas las fotos de golpe. Al inicio y cada vez
      que el usuario pulsa «Cargar más imágenes» se agregan LOTE fotos a la vez.
      El tope antiguo (LIMITE_SECCION = 300) era el culpable de que la página «se cortara»
@@ -170,7 +170,7 @@
     if (EST.trim.length && EST.trim.indexOf(trimestreDe(d)) < 0) return false;
     return true;
   }
-  function hayFiltros() { return !!(EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || EST.orden); }
+  function hayFiltros() { return !!(EST.etiquetas.length || EST.desde || EST.hasta || EST.trim.length || (EST.orden && EST.orden !== "desc")); }   // el orden «nuevas primero» es ahora el predeterminado, no cuenta como filtro
   function chipHTML(txt, accion, val) { return '<span class="jfz-chip">' + esc(txt) + '<button type="button" data-acc="' + accion + '" data-v="' + esc(val || "") + '" aria-label="Quitar filtro"><i class="bi bi-x-lg"></i></button></span>'; }
   /* Formatea "2026-08-27" como "27 ago 2026" (para cajas de fecha legibles y cortas) */
   var MESES_ABREV = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -184,7 +184,7 @@
     if (EST.desde) c.push(chipHTML("desde " + EST.desde, "desde"));
     if (EST.hasta) c.push(chipHTML("hasta " + EST.hasta, "hasta"));
     EST.trim.forEach(function (t) { c.push(chipHTML(t, "trim", t)); });
-    if (EST.orden) c.push(chipHTML(EST.orden === "asc" ? "fecha ↑ antiguas primero" : "fecha ↓ nuevas primero", "orden"));
+    if (EST.orden && EST.orden !== "desc") c.push(chipHTML(EST.orden === "asc" ? "fecha ↑ antiguas primero" : "fecha ↓ nuevas primero", "orden"));
     box.innerHTML = c.length ? c.join("") + '<button type="button" class="jfz-limpiar" data-acc="limpiar"><i class="bi bi-arrow-counterclockwise"></i> Limpiar todo</button>' : "";
     box.hidden = !c.length;
     /* el panel puede haber crecido (o encogido) al cambiar los chips: re-medir el cuerpo abierto */
@@ -413,7 +413,7 @@
     if (EST.desde || EST.hasta) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar-range"></i>' + esc(((EST.desde ? fechaCorta(EST.desde) : "…") + " → " + (EST.hasta ? fechaCorta(EST.hasta) : "…"))) + '</span>');
     if (EST.trim.length === 1) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar3"></i>' + esc(EST.trim[0]) + '</span>');
     else if (EST.trim.length > 1) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-calendar3"></i>' + esc(EST.trim.join(", ")) + '</span>');
-    if (EST.orden) chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-sort-' + (EST.orden === "asc" ? "down-alt" : "down") + '"></i>' + (EST.orden === "asc" ? "↑ antiguas" : "↓ nuevas") + '</span>');
+    if (EST.orden && EST.orden !== "desc") chipsR.push('<span class="jfz-ft-caja"><i class="bi bi-sort-' + (EST.orden === "asc" ? "down-alt" : "down") + '"></i>' + (EST.orden === "asc" ? "↑ antiguas" : "↓ nuevas") + '</span>');
     r.innerHTML = chipsR.join("");
     r.hidden = !chipsR.length;
     var panel = $("#jfz-buscador"); if (panel) panel.classList.toggle("tiene-filtros", chipsR.length > 0);
@@ -462,9 +462,9 @@
       if (acc === "desde") { EST.desde = ""; if (d1) d1.value = ""; }
       if (acc === "hasta") { EST.hasta = ""; if (d2) d2.value = ""; }
       if (acc === "trim") { EST.trim = EST.trim.filter(function (x) { return x !== v; }); var cb2 = $('.jfz-trims input[value="' + v + '"]'); if (cb2) { cb2.checked = false; if (cb2.closest(".jfz-trim")) cb2.closest(".jfz-trim").classList.remove("on"); } }
-      if (acc === "orden") { EST.orden = ""; if (o) o.value = ""; }
+      if (acc === "orden") { EST.orden = "desc"; if (o) o.value = "desc"; }   // quitar el filtro de orden vuelve al predeterminado: nuevas primero
       if (acc === "limpiar") {
-        EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "" };
+        EST = { q: "", etiquetas: [], desde: "", hasta: "", trim: [], orden: "desc" };   // «Limpiar todo» conserva el orden predeterminado (nuevas primero)
         /* Se re-pinta SOLO el panel de filtros para que los controles vuelvan a su estado
            vacío; como el DOM del panel se sustituye, los chips y el resumen se actualizan
            apuntando directamente a la caja nueva (antes, al llamar renderGallery() completo,
