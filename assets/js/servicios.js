@@ -10,8 +10,8 @@ window.JFZ_CONFIG.AVISO_SESION =
   "El desplazamiento hasta ese punto no se cobra ni se paga: corre por cuenta del cliente.";
 
 window.JFZ_CONFIG.SERVICIOS = [
-  { id: "sesion-fotos", nombre: "Fotos", icono: "bi-camera", precio: null, precioTexto: "Desde $5.000 por foto",
-    nota: "Pagas solo las fotos que elijas: $10.000 c/u, $8.000 c/u desde 3 fotos y $5.000 c/u desde 4. Mismo precio para una o varias personas por foto.", aviso: true },
+  { id: "sesion-fotos", nombre: "Fotos", icono: "bi-camera", precio: null, precioTexto: "Desde $8.000 por foto",
+    nota: "Pagas solo las fotos que elijas: $12.000 c/u, y $8.000 c/u desde 3 fotos. Mismo precio para una o varias personas por foto.", aviso: true },
   { id: "video-short", nombre: "Video corto (short)", icono: "bi-phone", precio: null, precioTexto: "Regalo con 1 foto",
     nota: "30 segundos o menos para redes.Foto solo después de la sesión de fotos.", aviso: true },
   { id: "cinematic", nombre: "Video cinematic", icono: "bi-camera-video", precio: 5000,
