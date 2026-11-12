@@ -20,9 +20,8 @@ window.JFZ_CONFIG = {
   // 3) Precio por foto según cuántas fotos elija el cliente (en pesos).
   //    "desde" = cantidad mínima de fotos. Con 2 fotos se cobra el precio de 1 (ajústalo si quieres).
   PRECIOS: [
-    { desde: 1, precio: 10000 },
+    { desde: 1, precio: 12000 },
     { desde: 3, precio: 8000 },
-    { desde: 4, precio: 5000 }
   ],
 
   // 4) Firebase (inicio de sesión con Google). Pega aquí los datos de tu app web de Firebase.
