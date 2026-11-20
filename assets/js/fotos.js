@@ -3025,7 +3025,21 @@ window.JFZ_FOTOS = [
       "IMG_8156.webp",
       "IMG_8157.webp",
       "IMG_8158.webp",
-      "IMG_8160.webp"
+      "IMG_8160.webp",
+      "IMG_8161.webp",
+      "IMG_8162.webp",
+      "IMG_8163.webp",
+      "IMG_8165.webp",
+      "IMG_8167.webp",
+      "IMG_8168.webp",
+      "IMG_8171.webp",
+      "IMG_8172.webp",
+      "IMG_8173.webp",
+      "IMG_8174.webp",
+      "IMG_8175.webp",
+      "IMG_8176.webp",
+      "IMG_8185.webp",
+      "IMG_8186.webp"
     ],
     "fechas": {
       "IMG_1468.webp": "2026-08-01",
@@ -5988,7 +6002,21 @@ window.JFZ_FOTOS = [
       "IMG_8156.webp": "2026-11-19",
       "IMG_8157.webp": "2026-11-19",
       "IMG_8158.webp": "2026-11-19",
-      "IMG_8160.webp": "2026-11-19"
+      "IMG_8160.webp": "2026-11-19",
+      "IMG_8161.webp": "2026-11-20",
+      "IMG_8162.webp": "2026-11-20",
+      "IMG_8163.webp": "2026-11-20",
+      "IMG_8165.webp": "2026-11-20",
+      "IMG_8167.webp": "2026-11-20",
+      "IMG_8168.webp": "2026-11-20",
+      "IMG_8171.webp": "2026-11-20",
+      "IMG_8172.webp": "2026-11-20",
+      "IMG_8173.webp": "2026-11-20",
+      "IMG_8174.webp": "2026-11-20",
+      "IMG_8175.webp": "2026-11-20",
+      "IMG_8176.webp": "2026-11-20",
+      "IMG_8185.webp": "2026-11-20",
+      "IMG_8186.webp": "2026-11-20"
     }
   }
 ];
